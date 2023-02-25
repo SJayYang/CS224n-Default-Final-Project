@@ -11,3 +11,6 @@ pip install filelock==3.0.12
 pip install sklearn==0.0
 pip install tokenizers==0.10.1
 pip install explainaboard_client==0.0.7
+pip install zipp==3.11.0
+pip install idna==3.4
+pip install chardet==4.0.0
