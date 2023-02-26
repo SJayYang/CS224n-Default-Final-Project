@@ -54,11 +54,10 @@ class BertSelfAttention(nn.Module):
     # normalize the scores
     # multiply the attention scores to the value and get back V'
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
-    normalized = torch.softmax(masked_S, -1)
-    V_prime = torch.matmul(normalized, V)
-    attention_heads = V_prime.view(bs, seq_len, self.all_head_size)
-    final_attention = self.transform(attention_heads, nn.Linear)
-    return final_attention @ V
+    attns = torch.softmax(masked_S, -1) # (batch, num_heads, seq, seq)
+    V_prime = torch.matmul(attns, V) # (batch, num_heads, seq * head_dim)
+    attention_heads = V_prime.transpose(1, 2).view(bs, seq_len, -1)
+    return attention_heads
 
   def forward(self, hidden_states, attention_mask):
     """
