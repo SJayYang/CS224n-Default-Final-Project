@@ -44,7 +44,7 @@ class BertSelfAttention(nn.Module):
     
     S = torch.matmul(Q, K.permute(0, 1, 3, 2)) / math.sqrt(seq_len)
     # S = QK^T / sqrt(d_k)
-    masked_S = torch.matmul(S, attention_mask)
+    masked_S = torch.add(S, attention_mask)
     # attention scores are calculated by multiply query and key 
     # and get back a score matrix S of [bs, num_attention_heads, seq_len, seq_len]
     # S[*, i, j, k] represents the (unnormalized)attention score between the j-th and k-th token, given by i-th attention head
