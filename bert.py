@@ -40,7 +40,7 @@ class BertSelfAttention(nn.Module):
     Q = query
     K = key
     V = value
-    bs, num_attn_heads, seq_len, attn_head_size = query.shape()
+    bs, num_attn_heads, seq_len, attn_head_size = query.shape
     
     S = torch.matmul(Q, K.permute(0, 1, 3, 2)) / math.sqrt(attn_head_size)
     # S = QK^T / sqrt(d_k)
@@ -56,7 +56,7 @@ class BertSelfAttention(nn.Module):
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
     attns = F.softmax(masked_S, -1) # (batch, num_heads, seq, seq)
     V_prime = torch.matmul(attns, V) # (batch, num_heads, seq, head_dim)
-    attention_heads = V_prime.transpose(1, 2).view(bs, seq_len, -1)
+    attention_heads = V_prime.transpose(1, 2).reshape(bs, seq_len, -1)
     return attention_heads
 
   def forward(self, hidden_states, attention_mask):
@@ -116,7 +116,7 @@ class BertLayer(nn.Module):
     3. a feed forward layer
     4. a add-norm that takes the input and output of the feed forward layer
     """
-    self_attn = self.self_attention(hidden_states)
+    self_attn = self.self_attention(hidden_states, attention_mask)
     add_norm1 = self.add_norm(hidden_states, self_attn, self.attention_dense, self.attention_dropout, self.attention_layer_norm)
     ff_layer = self.interm_dense(add_norm1)
     ff_layer = self.interm_af(ff_layer)
@@ -174,9 +174,8 @@ class BertModel(BertPreTrainedModel):
     tk_type_embeds = self.tk_type_embedding(tk_type_ids)
 
     # Add three embeddings together; then apply embed_layer_norm and dropout and return.
-    sum1 = torch.add(inputs_embeds, pos_embeds)
-    sum2 = torch.add(sum1, tk_type_ids)
-    x = self.embed_layer_norm(sum2)
+    sum = inputs_embeds + pos_embeds + tk_type_embeds
+    x = self.embed_layer_norm(sum)
     x = self.embed_dropout(x)
     return x
 
