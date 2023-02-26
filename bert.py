@@ -102,8 +102,8 @@ class BertLayer(nn.Module):
     ln_layer: the layer norm to be applied
     """
     # Hint: Remember that BERT applies to the output of each sub-layer, before it is added to the sub-layer input and normalized 
-    ### TODO
-    raise NotImplementedError
+    add = dropout(dense_layer(output)) + input
+    return ln_layer(add)
 
 
   def forward(self, hidden_states, attention_mask):
