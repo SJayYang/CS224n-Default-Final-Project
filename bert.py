@@ -55,7 +55,7 @@ class BertSelfAttention(nn.Module):
     # multiply the attention scores to the value and get back V'
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
     attns = F.softmax(masked_S, -1) # (batch, num_heads, seq, seq)
-    V_prime = torch.matmul(attns, V) # (batch, num_heads, seq * head_dim)
+    V_prime = torch.matmul(attns, V) # (batch, num_heads, seq, head_dim)
     attention_heads = V_prime.transpose(1, 2).view(bs, seq_len, -1)
     return attention_heads
 
@@ -161,27 +161,26 @@ class BertModel(BertPreTrainedModel):
     seq_length = input_shape[1]
 
     # Get word embedding from self.word_embedding into input_embeds.
-    inputs_embeds = None
-    ### TODO
-    raise NotImplementedError
+    embeddings = torch.index_select(self.word_embedding, 0, input_ids)
+    inputs_embeds = embeddings.view(seq_length, -1)
 
 
     # Get position index and position embedding from self.pos_embedding into pos_embeds.
     pos_ids = self.position_ids[:, :seq_length]
 
-    pos_embeds = None
-    ### TODO
-    raise NotImplementedError
-
+    embeddings = torch.index_select(self.pos_embedding, 0, pos_ids)
+    pos_embeds = embeddings.view(seq_length, -1)
 
     # Get token type ids, since we are not consider token type, just a placeholder.
     tk_type_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
     tk_type_embeds = self.tk_type_embedding(tk_type_ids)
 
     # Add three embeddings together; then apply embed_layer_norm and dropout and return.
-    ### TODO
-    raise NotImplementedError
-
+    sum1 = torch.add(inputs_embeds, pos_embeds)
+    sum2 = torch.add(sum1, tk_type_ids)
+    x = self.embed_layer_norm(sum2)
+    x = self.embed_dropout(x)
+    return x
 
   def encode(self, hidden_states, attention_mask):
     """
