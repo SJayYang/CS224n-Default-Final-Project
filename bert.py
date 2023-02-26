@@ -37,12 +37,12 @@ class BertSelfAttention(nn.Module):
   def attention(self, key, query, value, attention_mask):
     # each attention is calculated following eq (1) of https://arxiv.org/pdf/1706.03762.pdf
     # S = QK^T 
-    Q = self.transform(query, nn.Linear)
-    K = self.transform(key, nn.Linear)
-    V = self.transform(value, nn.Linear)
-    bs, seq_len= query.shape[:2]
+    Q = query
+    K = key
+    V = value
+    bs, num_attn_heads, seq_len, attn_head_size = query.shape()
     
-    S = torch.matmul(Q, K.permute(0, 1, 3, 2)) / math.sqrt(seq_len)
+    S = torch.matmul(Q, K.permute(0, 1, 3, 2)) / math.sqrt(attn_head_size)
     # S = QK^T / sqrt(d_k)
     masked_S = torch.add(S, attention_mask)
     # attention scores are calculated by multiply query and key 
@@ -54,7 +54,7 @@ class BertSelfAttention(nn.Module):
     # normalize the scores
     # multiply the attention scores to the value and get back V'
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
-    attns = torch.softmax(masked_S, -1) # (batch, num_heads, seq, seq)
+    attns = F.softmax(masked_S, -1) # (batch, num_heads, seq, seq)
     V_prime = torch.matmul(attns, V) # (batch, num_heads, seq * head_dim)
     attention_heads = V_prime.transpose(1, 2).view(bs, seq_len, -1)
     return attention_heads
