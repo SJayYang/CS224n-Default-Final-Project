@@ -59,12 +59,11 @@ class BertSentimentClassifier(torch.nn.Module):
         sequence_output, first_tk = BERT_output_dict['last_hidden_state'], BERT_output_dict['pooler_output']
 
         # Apply dropout layer
-        sequence_output = self.dropout(sequence_output)
+        output = self.dropout(first_tk)
         # Apply linear layer
-        sequence_output = self.bert.pooler_dense(sequence_output)
+        output = self.bert.pooler_dense(output)
         # Retrieve first token
-        first_tk = sequence_output[:, 0]
-        return first_tk
+        return output
 
 
 class SentimentDataset(Dataset):
