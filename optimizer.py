@@ -45,21 +45,37 @@ class AdamW(Optimizer):
                 # Access hyperparameters from the `group` dictionary
                 alpha = group["lr"]
 
+                betas = group["betas"]
+                eps = group["eps"]
+                weight_decay = group["weight_decay"]
+                
+                # https://edstem.org/us/courses/33056/discussion/2673750
+                if len(state) == 0:
+                    state["t"] = 0
+                    state["m"] = torch.zeros_like(p)
+                    state["v"] = torch.zeros_like(p)
+
+                state["t"] += 1 
+                t = state["t"]
+                g_t = grad 
                 # Complete the implementation of AdamW here, reading and saving
                 # your state in the `state` dictionary above.
                 # The hyperparameters can be read from the `group` dictionary
                 # (they are lr, betas, eps, weight_decay, as saved in the constructor).
                 #
                 # 1- Update first and second moments of the gradients
+                state["m"] = state["m"] * betas[0] + (1 - betas[0]) * g_t  
+                state["v"] = state["v"] * betas[1] + (1 - betas[1]) * (torch.mul(g_t, g_t))
                 # 2- Apply bias correction
+                a_t = alpha * (math.sqrt(1 - (betas[1] ** t)))/(1 - betas[0] ** t)
                 #    (using the "efficient version" given in https://arxiv.org/abs/1412.6980;
                 #     also given in the pseudo-code in the project description).
                 # 3- Update parameters (p.data).
+                p.data = p.data - a_t * (state["m"] / (torch.sqrt(state["v"]) + eps))
                 # 4- After that main gradient-based update, update again using weight decay
                 #    (incorporating the learning rate again).
-
-                ### TODO
-                raise NotImplementedError
+                # https://edstem.org/us/courses/33056/discussion/2674611
+                p.data = p.data - weight_decay * alpha * p.data
 
 
         return loss
