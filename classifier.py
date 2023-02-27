@@ -47,7 +47,6 @@ class BertSentimentClassifier(torch.nn.Module):
         # You will implement this class to encode
         # sentences using BERT and obtain the pooled representation of each sentence. The class will then classify
         # the sentence by applying on dropout the pooled output and then projecting it using a linear layer
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
 
 
@@ -58,7 +57,7 @@ class BertSentimentClassifier(torch.nn.Module):
         # the training loop currently uses F.cross_entropy as the loss function.
         BERT_output_dict = self.bert.forward(input_ids=input_ids, attention_mask=attention_mask)
         sequence_output, first_tk = BERT_output_dict['last_hidden_state'], BERT_output_dict['pooler_output']
-        
+
         # Apply dropout layer
         sequence_output = self.dropout(sequence_output)
         # Apply linear layer
@@ -81,7 +80,7 @@ class SentimentDataset(Dataset):
         return self.dataset[idx]
 
     def pad_data(self, data):
-        
+
         sents = [x[0] for x in data]
         labels = [x[1] for x in data]
         sent_ids = [x[2] for x in data]
@@ -119,7 +118,7 @@ class SentimentTestDataset(Dataset):
         return self.dataset[idx]
 
     def pad_data(self, data):
-        
+
         sents = [x[0] for x in data]
         sent_ids = [x[1] for x in data]
 
@@ -177,7 +176,7 @@ def model_eval(dataloader, model, device):
     for step, batch in enumerate(tqdm(dataloader, desc=f'eval', disable=TQDM_DISABLE)):
         b_ids, b_mask, b_labels, b_sents, b_sent_ids = batch['token_ids'],batch['attention_mask'],  \
                                                         batch['labels'], batch['sents'], batch['sent_ids']
-                                                      
+
 
         b_ids = b_ids.to(device)
         b_mask = b_mask.to(device)
@@ -206,7 +205,7 @@ def model_test_eval(dataloader, model, device):
     for step, batch in enumerate(tqdm(dataloader, desc=f'eval', disable=TQDM_DISABLE)):
         b_ids, b_mask, b_sents, b_sent_ids = batch['token_ids'],batch['attention_mask'],  \
                                                          batch['sents'], batch['sent_ids']
-                                                      
+
 
         b_ids = b_ids.to(device)
         b_mask = b_mask.to(device)
@@ -312,7 +311,7 @@ def test(args):
         model.load_state_dict(saved['model'])
         model = model.to(device)
         print(f"load model from {args.filepath}")
-        
+
         dev_data = load_data(args.dev, 'valid')
         dev_dataset = SentimentDataset(dev_data, args)
         dev_dataloader = DataLoader(dev_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=dev_dataset.collate_fn)
@@ -320,7 +319,7 @@ def test(args):
         test_data = load_data(args.test, 'test')
         test_dataset = SentimentTestDataset(test_data, args)
         test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=test_dataset.collate_fn)
-        
+
         dev_acc, dev_f1, dev_pred, dev_true, dev_sents, dev_sent_ids = model_eval(dev_dataloader, model, device)
         print('DONE DEV')
         test_pred, test_sents, test_sent_ids = model_test_eval(test_dataloader, model, device)
@@ -345,7 +344,7 @@ def get_args():
     parser.add_argument("--use_gpu", action='store_true')
     parser.add_argument("--dev_out", type=str, default="cfimdb-dev-output.txt")
     parser.add_argument("--test_out", type=str, default="cfimdb-test-output.txt")
-                                    
+
 
     parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.3)
