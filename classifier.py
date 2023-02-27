@@ -44,8 +44,13 @@ class BertSentimentClassifier(torch.nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
 
-        ### TODO
-        raise NotImplementedError
+        # You will implement this class to encode
+        # sentences using BERT and obtain the pooled representation of each sentence. The class will then classify
+        # the sentence by applying on dropout the pooled output and then projecting it using a linear layer
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
+        # TODO: Add in dimensions
+        self.linear_layer = torch.nn.Linear(config.hidden_size, config.dropout_prob)
 
 
     def forward(self, input_ids, attention_mask):
@@ -53,8 +58,16 @@ class BertSentimentClassifier(torch.nn.Module):
         # The final BERT contextualized embedding is the hidden state of [CLS] token (the first token).
         # HINT: you should consider what is the appropriate output to return given that
         # the training loop currently uses F.cross_entropy as the loss function.
-        ### TODO
-        raise NotImplementedError
+
+        embedding_output = self.bert.embed(input_ids=input_ids)
+        # feed to a transformer (a stack of BertLayers)
+        sequence_output = self.bert.encode(embedding_output, attention_mask=attention_mask)
+        # get cls token hidden state
+
+        first_tk = sequence_output[:, 0]
+        first_tk = self.bert.pooler_dense(first_tk)
+        first_tk = self.bert.pooler_af(first_tk)
+        return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
 
 
 
