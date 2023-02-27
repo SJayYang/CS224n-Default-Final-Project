@@ -49,8 +49,6 @@ class BertSentimentClassifier(torch.nn.Module):
         # the sentence by applying on dropout the pooled output and then projecting it using a linear layer
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
-        # TODO: Add in dimensions
-        self.linear_layer = torch.nn.Linear(config.hidden_size, config.dropout_prob)
 
 
     def forward(self, input_ids, attention_mask):
@@ -58,17 +56,16 @@ class BertSentimentClassifier(torch.nn.Module):
         # The final BERT contextualized embedding is the hidden state of [CLS] token (the first token).
         # HINT: you should consider what is the appropriate output to return given that
         # the training loop currently uses F.cross_entropy as the loss function.
-
-        embedding_output = self.bert.embed(input_ids=input_ids)
-        # feed to a transformer (a stack of BertLayers)
-        sequence_output = self.bert.encode(embedding_output, attention_mask=attention_mask)
-        # get cls token hidden state
-
+        BERT_output_dict = self.bert.forward(input_ids=input_ids, attention_mask=attention_mask)
+        sequence_output, first_tk = BERT_output_dict['last_hidden_state'], BERT_output_dict['pooler_output']
+        
+        # Apply dropout layer
+        sequence_output = self.dropout(sequence_output)
+        # Apply linear layer
+        sequence_output = self.bert.pooler_dense(sequence_output)
+        # Retrieve first token
         first_tk = sequence_output[:, 0]
-        first_tk = self.bert.pooler_dense(first_tk)
-        first_tk = self.bert.pooler_af(first_tk)
-        return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
-
+        return first_tk
 
 
 class SentimentDataset(Dataset):
