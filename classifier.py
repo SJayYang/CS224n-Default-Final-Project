@@ -48,6 +48,7 @@ class BertSentimentClassifier(torch.nn.Module):
         # sentences using BERT and obtain the pooled representation of each sentence. The class will then classify
         # the sentence by applying on dropout the pooled output and then projecting it using a linear layer
         self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
+        self.linear = torch.nn.Linear(config.hidden_size, self.num_labels)
 
 
     def forward(self, input_ids, attention_mask):
@@ -60,8 +61,10 @@ class BertSentimentClassifier(torch.nn.Module):
 
         # Apply dropout layer
         output = self.dropout(first_tk)
+
         # Apply linear layer
-        output = self.bert.pooler_dense(output)
+        output = self.linear(output)
+        
         # Retrieve first token
         return output
 
