@@ -16,7 +16,7 @@ from datasets import SentenceClassificationDataset, SentencePairDataset, \
 from evaluation import model_eval_sst, test_model_multitask
 
 
-TQDM_DISABLE=True
+TQDM_DISABLE=False
 
 # fix the random seed
 def seed_everything(seed=11711):
@@ -93,6 +93,7 @@ class MultitaskBERT(nn.Module):
         output = torch.cat((first_tk_1, first_tk_2), 0)
         output = self.fc1(output)
         output = self.fc2(output)
+        return output
         
 
 
@@ -108,6 +109,7 @@ class MultitaskBERT(nn.Module):
         output = torch.cat((first_tk_1, first_tk_2), 0)
         output = self.fc1(output)
         output = self.fc2(output)
+        return output
 
 
 
