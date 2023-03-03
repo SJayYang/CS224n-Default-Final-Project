@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-conda create -n cs224n_dfp python=3.8
-conda activate cs224n_dfp
+conda create -n cs224n_dfp_test1 python=3.8
+conda activate cs224n_dfp_test1
 
-conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 -c pytorch
+conda install pytorch==1.9.0 torchvision torchaudio cudatoolkit=11.1 -c pytorch
 pip install tqdm==4.58.0
 pip install requests==2.25.1
 pip install importlib-metadata==3.7.0
