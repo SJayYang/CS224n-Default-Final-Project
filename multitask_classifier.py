@@ -90,7 +90,7 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.bert.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)['pooler_output']
         first_tk_2 = self.bert.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)['pooler_output']
-        output = torch.cat((first_tk_1, first_tk_2), 0)
+        output = torch.cat((first_tk_1, first_tk_2), 1)
         output = self.fc1(output)
         output = self.fc2(output)
         return output
@@ -106,7 +106,7 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.bert.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)['pooler_output']
         first_tk_2 = self.bert.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)['pooler_output']
-        output = torch.cat((first_tk_1, first_tk_2), 0)
+        output = torch.cat((first_tk_1, first_tk_2), 1)
         output = self.fc1(output)
         output = self.fc2(output)
         return output
