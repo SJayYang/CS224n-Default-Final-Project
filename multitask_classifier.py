@@ -51,8 +51,12 @@ class MultitaskBERT(nn.Module):
                 param.requires_grad = False
             elif config.option == 'finetune':
                 param.requires_grad = True
-        ### TODO
-        raise NotImplementedError
+        self.num_labels = 5
+        self.linear_sentiments = nn.Linear(config.hidden_size, self.num_labels)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        # Linear layer that projects two concatenated [CLS] embeddings into dimensions of just one [CLS] embedding
+        self.fc1 = nn.Linear(config.hidden_size * 2, config.hidden_size)
+        self.fc2 = nn.Linear(config.hidden_size, config.hidden_size)
 
 
     def forward(self, input_ids, attention_mask):
@@ -61,8 +65,8 @@ class MultitaskBERT(nn.Module):
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
-        ### TODO
-        raise NotImplementedError
+        first_tk = self.bert.forward(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
+        return first_tk
 
 
     def predict_sentiment(self, input_ids, attention_mask):
@@ -71,8 +75,10 @@ class MultitaskBERT(nn.Module):
         (0 - negative, 1- somewhat negative, 2- neutral, 3- somewhat positive, 4- positive)
         Thus, your output should contain 5 logits for each sentence.
         '''
-        ### TODO
-        raise NotImplementedError
+        first_tk = self.forward(input_ids = input_ids, attention_mask=attention_mask)
+        first_tk = self.dropout(first_tk)
+        first_tk = self.linear_sentiments(first_tk)
+        return first_tk
 
 
     def predict_paraphrase(self,
@@ -82,8 +88,12 @@ class MultitaskBERT(nn.Module):
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
-        ### TODO
-        raise NotImplementedError
+        first_tk_1 = self.bert.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)['pooler_output']
+        first_tk_2 = self.bert.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)['pooler_output']
+        output = torch.cat((first_tk_1, first_tk_2), 0)
+        output = self.fc1(output)
+        output = self.fc2(output)
+        
 
 
     def predict_similarity(self,
@@ -93,8 +103,11 @@ class MultitaskBERT(nn.Module):
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
-        ### TODO
-        raise NotImplementedError
+        first_tk_1 = self.bert.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)['pooler_output']
+        first_tk_2 = self.bert.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)['pooler_output']
+        output = torch.cat((first_tk_1, first_tk_2), 0)
+        output = self.fc1(output)
+        output = self.fc2(output)
 
 
 
