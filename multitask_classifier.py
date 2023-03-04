@@ -55,8 +55,8 @@ class MultitaskBERT(nn.Module):
         self.linear_sentiments = nn.Linear(config.hidden_size, self.num_labels)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         # Linear layer that projects two concatenated [CLS] embeddings into dimensions of just one [CLS] embedding
-        self.fc1 = nn.Linear(config.hidden_size * 2, 1)
-        # self.fc2 = nn.Linear(config.hidden_size, 1)
+        self.fc1 = nn.Linear(config.hidden_size * 2, config.hidden_size)
+        self.fc2 = nn.Linear(config.hidden_size, 1)
 
 
     def forward(self, input_ids, attention_mask):
@@ -92,7 +92,7 @@ class MultitaskBERT(nn.Module):
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
         output = torch.cat((first_tk_1, first_tk_2), 1)
         output = self.fc1(output)
-        # output = self.fc2(output)
+        output = self.fc2(output)
         return output
         
 
@@ -108,7 +108,7 @@ class MultitaskBERT(nn.Module):
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
         output = torch.cat((first_tk_1, first_tk_2), 1)
         output = self.fc1(output)
-        # output = self.fc2(output)
+        output = self.fc2(output)
         return output
 
 
