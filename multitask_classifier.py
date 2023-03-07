@@ -106,9 +106,7 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
-        output = torch.cat((first_tk_1, first_tk_2), 1)
-        output = self.fc1(output)
-        output = self.fc2(output)
+        output = torch.nn.CosineSimilarity(first_tk_1, first_tk_2)
         return output
 
 
