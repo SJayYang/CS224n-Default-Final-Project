@@ -57,6 +57,9 @@ class MultitaskBERT(nn.Module):
         # Linear layer that projects two concatenated [CLS] embeddings into dimensions of just one [CLS] embedding
         self.fc1 = nn.Linear(config.hidden_size * 2, 1)
         self.cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        # Linear layer for Classification Objective Function (SBERT Paper)
+        self.linear_Wt = nn.Linear(3 * config.hidden_size, 5)
+        self.softmax = nn.Softmax(dim=1)
 
 
     def forward(self, input_ids, attention_mask):
@@ -105,7 +108,9 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
-        output = self.cos(first_tk_1, first_tk_2)
+        output = torch.concatenate((first_tk_1, first_tk_2, torch.sub(first_tk_1, first_tk_2)), 1)
+        output = self.linear_Wt(output)
+        output = self.softmax(output)
         return output
 
 
