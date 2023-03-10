@@ -106,10 +106,11 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
-        output = torch.cat((first_tk_1, first_tk_2), 1)
-        output = self.fc1(output)
-        output = self.fc2(output)
-        return output
+        return (first_tk_1, first_tk_2)
+        # output = torch.cat((first_tk_1, first_tk_2), 1)
+        # output = self.fc1(output)
+        # output = self.fc2(output)
+        # return output
 
 
 
@@ -144,6 +145,14 @@ def train_multitask(args):
                                       collate_fn=sst_train_data.collate_fn)
     sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sst_dev_data.collate_fn)
+    
+    sts_train_data = SentencePairDataset(sts_train_data, args)
+    sts_dev_data = SentencePairDataset(sts_dev_data, args)
+
+    sts_train_dataloader = DataLoader(sts_train_data, shuffle=True, batch_size=args.batch_size,
+                                      collate_fn=sts_train_data.collate_fn)
+    sts_dev_dataloader = DataLoader(sts_dev_data, shuffle=False, batch_size=args.batch_size,
+                                    collate_fn=sts_dev_data.collate_fn)
 
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
@@ -166,6 +175,38 @@ def train_multitask(args):
         model.train()
         train_loss = 0
         num_batches = 0
+
+        # STS
+        for batch in tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+            b_ids_1, b_ids_2, b_mask_1, b_mask_2, b_labels = (batch['token_ids_1'], batch['token_ids_2'], 
+                                                              batch['attention_mask_1'], batch['attention_mask_2'],
+                                                              batch['labels'])
+
+            b_ids_1 = b_ids_1.to(device)
+            b_ids_2 = b_ids_2.to(device)
+            b_mask_1 = b_mask_1.to(device)
+            b_mask_2 = b_mask_2.to(device)
+            b_labels = b_labels.to(device)
+
+            # set cosine similarity label to -1 (dissimilar) if similarity score is 0-2; set label to 1 (similar) if score is 3-5
+            for i in range(b_labels.size(dim=0)):
+                if b_labels[i] <= 2:
+                    b_labels[i] = -1
+                else:
+                    b_labels[i] = 1
+
+            optimizer.zero_grad()
+            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+            loss = F.cosine_embedding_loss(logits[0], logits[1], b_labels.view(-1)) / args.batch_size
+            loss.requires_grad = True
+
+            loss.backward()
+            optimizer.step()
+
+            train_loss += loss.item()
+            num_batches += 1
+
+        # SST
         for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
