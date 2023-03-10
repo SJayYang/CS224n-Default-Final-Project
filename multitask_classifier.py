@@ -200,7 +200,8 @@ def train_multitask(args):
             optimizer.zero_grad()
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
             # loss = F.cosine_embedding_loss(logits[0], logits[1], b_labels.view(-1)) / args.batch_size
-        
+            loss = torch.zeros(1)
+
             for i in range(b_labels.size(dim=0)):
                 if b_labels[i] <= 2:
                     b_labels[i] = -1
