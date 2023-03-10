@@ -56,6 +56,7 @@ class MultitaskBERT(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         # Linear layer that projects two concatenated [CLS] embeddings into dimensions of just one [CLS] embedding
         self.fc1 = nn.Linear(config.hidden_size * 2, 1)
+        self.fc2 = nn.Linear(config.hidden_size * 2, 1)
         self.cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         # Linear layer for Classification Objective Function (SBERT Paper)
         self.linear_Wt = nn.Linear(3 * config.hidden_size, 5)
@@ -68,7 +69,7 @@ class MultitaskBERT(nn.Module):
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
-        first_tk = self.bert.forward(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
+        first_tk = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
         return first_tk
 
 
@@ -108,7 +109,10 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
-        return (first_tk_1, first_tk_2)
+        output = self.cos(first_tk_1, first_tk_2)
+        # output = torch.cat((first_tk_1, first_tk_2), 1)
+        # output = self.fc2(output)
+        return output
         # output = torch.cat((first_tk_1, first_tk_2), 1)
         # output = self.fc1(output)
         # output = self.fc2(output)
@@ -191,15 +195,19 @@ def train_multitask(args):
             b_labels = b_labels.to(device)
 
             # set cosine similarity label to -1 (dissimilar) if similarity score is 0-2; set label to 1 (similar) if score is 3-5
-            for i in range(b_labels.size(dim=0)):
-                if b_labels[i] <= 2:
-                    b_labels[i] = -1
-                else:
-                    b_labels[i] = 1
+            
 
             optimizer.zero_grad()
             logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            loss = F.cosine_embedding_loss(logits[0], logits[1], b_labels.view(-1)) / args.batch_size
+            # loss = F.cosine_embedding_loss(logits[0], logits[1], b_labels.view(-1)) / args.batch_size
+        
+            for i in range(b_labels.size(dim=0)):
+                if b_labels[i] <= 2:
+                    b_labels[i] = -1
+                    loss += max(0, logits[i])
+                else:
+                    b_labels[i] = 1
+                    loss += 1 - logits[i]
             loss.requires_grad = True
 
             loss.backward()
