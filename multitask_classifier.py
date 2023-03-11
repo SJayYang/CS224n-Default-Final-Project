@@ -256,7 +256,7 @@ def train_multitask(args):
 
             # run MSE loss between normalized labels and logits
             loss = F.mse_loss(logits, b_labels)
-            # loss.requires_grad = True
+            loss.requires_grad = True
 
             loss.backward()
             optimizer.step()
