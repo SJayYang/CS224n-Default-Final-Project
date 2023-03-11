@@ -109,7 +109,7 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
-        output = self.cos(first_tk_1, first_tk_2)
+        output = F.relu(self.cos(first_tk_1, first_tk_2))
         # output = torch.cat((first_tk_1, first_tk_2), 1)
         # output = self.fc2(output)
         return output
@@ -213,20 +213,17 @@ def train_multitask(args):
             b_mask_2 = b_mask_2.to(device)
             b_labels = b_labels.to(device)
 
-            # set cosine similarity label to -1 (dissimilar) if similarity score is 0-2; set label to 1 (similar) if score is 3-5
-            
+            # normalize labels            
+            b_labels = b_labels / config.num_labels
 
             optimizer.zero_grad()
-            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-            loss = torch.zeros(1)
-            loss = loss.to(device)
 
-            for i in range(b_labels.size(dim=0)):
-                if b_labels[i] <= 2:
-                    loss += max(0, logits[i])
-                else:
-                    loss += 1 - logits[i]
-            loss.requires_grad = True
+            # compute logits (cosine similarity scores)
+            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
+
+            # run MSE loss between normalized labels and logits
+            loss = F.mse_loss(logits, b_labels)
+            # loss.requires_grad = True
 
             loss.backward()
             optimizer.step()
