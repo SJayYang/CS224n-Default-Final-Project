@@ -224,38 +224,6 @@ def train_multitask(args):
 
             # run MSE loss between normalized labels and logits
             loss = F.mse_loss(logits, b_labels)
-            # loss.requires_grad = True
-
-            loss.backward()
-            optimizer.step()
-
-            train_loss += loss.item()
-            num_batches += 1
-            
-        # STS
-        for batch in tqdm(sts_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
-            b_ids_1, b_ids_2, b_mask_1, b_mask_2, b_labels = (batch['token_ids_1'], batch['token_ids_2'], 
-                                                              batch['attention_mask_1'], batch['attention_mask_2'],
-                                                              batch['labels'])
-
-            b_ids_1 = b_ids_1.to(device)
-            b_ids_2 = b_ids_2.to(device)
-            b_mask_1 = b_mask_1.to(device)
-            b_mask_2 = b_mask_2.to(device)
-            b_labels = b_labels.to(device)
-
-            import pdb
-            pdb.set_trace()
-            # normalize labels            
-            b_labels = b_labels / config['num_labels']
-
-            optimizer.zero_grad()
-
-            # compute logits (cosine similarity scores)
-            logits = model.predict_similarity(b_ids_1, b_mask_1, b_ids_2, b_mask_2)
-
-            # run MSE loss between normalized labels and logits
-            loss = F.mse_loss(logits, b_labels)
             loss.requires_grad = True
 
             loss.backward()
