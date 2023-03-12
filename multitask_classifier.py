@@ -113,11 +113,11 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
-        # output = torch.cat((first_tk_1, first_tk_2), 1)
-        # output = self.dropout(output)
-        # output = self.sim_proj(output)
-        output = self.cos(first_tk_1, first_tk_2)
-        output = self.relu(output)
+        output = torch.cat((first_tk_1, first_tk_2), 1)
+        output = self.dropout(output)
+        output = self.sim_proj(output)
+        # output = self.cos(first_tk_1, first_tk_2)
+        # output = self.relu(output)
         return output
 
 
@@ -252,10 +252,10 @@ def train_multitask(args):
             sts_b_labels = sts_b_labels.to(device)
 
             logits = model.predict_similarity(sts_b_ids_1, sts_b_mask_1, sts_b_ids_2, sts_b_mask_2)
-            # rescaled_logits = torch.sigmoid(logits) * (N_SIMILARITY_CLASSES - 1)
-            rescaled_logits = logits * (N_SIMILARITY_CLASSES - 1)
-            loss = F.mse_loss(rescaled_logits, sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
-            loss.requires_grad = True
+            rescaled_logits = torch.sigmoid(logits) * (N_SIMILARITY_CLASSES - 1)
+            # rescaled_logits = logits * (N_SIMILARITY_CLASSES - 1)
+            loss = F.mse_loss(torch.squeeze(rescaled_logits, dim=1), sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
+            # loss.requires_grad = True
 
             loss.backward()
 
