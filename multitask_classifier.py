@@ -58,7 +58,7 @@ class MultitaskBERT(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         # Linear layer that projects two concatenated [CLS] embeddings into dimensions of just one [CLS] embedding
         self.para_proj = nn.Linear(config.hidden_size * 2, 1)
-        self.sim_proj = nn.Linear(config.hidden_size * 2, N_SIMILARITY_CLASSES)
+        self.sim_proj = nn.Linear(config.hidden_size * 2, 1)
         self.cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         # Linear layer for Classification Objective Function (SBERT Paper)
         self.linear_Wt = nn.Linear(3 * config.hidden_size, 5)
@@ -114,8 +114,7 @@ class MultitaskBERT(nn.Module):
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
         output = torch.cat((first_tk_1, first_tk_2), 1)
         output = self.dropout(output)
-        output = torch.argmax(F.softmax(output))
-        # output = self.sim_proj(output)
+        output = self.sim_proj(output)
         return output
 
 
@@ -250,7 +249,8 @@ def train_multitask(args):
             sts_b_labels = sts_b_labels.to(device)
 
             logits = model.predict_similarity(sts_b_ids_1, sts_b_mask_1, sts_b_ids_2, sts_b_mask_2)
-            loss = F.cross_entropy(logits, sts_b_labels.view(-1), reduction='sum') / args.batch_size
+            rescaled_logits = torch.sigmoid(logits) * (N_SIMILARITY_CLASSES - 1)
+            loss = F.mse_loss(torch.squeeze(rescaled_logits, dim=1), sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
             loss.backward()
 
