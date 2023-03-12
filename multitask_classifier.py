@@ -114,7 +114,8 @@ class MultitaskBERT(nn.Module):
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
         output = torch.cat((first_tk_1, first_tk_2), 1)
         output = self.dropout(output)
-        output = self.sim_proj(output)
+        output = np.argmax(F.softmax(output))
+        # output = self.sim_proj(output)
         return output
 
 
