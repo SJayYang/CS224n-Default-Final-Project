@@ -202,7 +202,7 @@ def pretrain_task(args):
     best_dev_acc = 0
 
     pretrain_file_path = "~/Github/CS224n-Default-Final-Project"
-    loss_fn = nn.CrossEntropy(ignore_index=-100)
+    loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
     # Think about CrossEntropy
 
     for epoch in range(args.epochs):
