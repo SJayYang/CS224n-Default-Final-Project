@@ -70,7 +70,7 @@ def model_eval_pretrain(dataloader, model, device):
         b_ids = b_ids.to(device)
         b_mask = b_mask.to(device)
 
-        logits = model(b_ids, b_mask)
+        logits = model.predict_masked_tokens(b_ids, b_mask)
         logits = logits.detach().cpu().numpy()
         preds = np.argmax(logits, axis=1).flatten()
 
