@@ -13,7 +13,7 @@ from tqdm import tqdm
 from datasets import SentenceClassificationDataset, SentencePairDataset, \
     load_multitask_data, load_multitask_test_data, MaskedLMDataset
 
-from evaluation import model_eval_sst, test_model_multitask
+from evaluation import model_eval_sst, test_model_multitask, model_eval_pretrain
 
 
 TQDM_DISABLE=False
@@ -224,7 +224,7 @@ def pretrain_task(args):
 
         train_loss = train_loss / (num_batches)
 
-        train_acc, train_f1, *_ = model_eval_sst(sst_train_dataloader, model, device)
+        train_acc, train_f1, *_ = model_eval_pretrain(sst_train_dataloader, model, device)
 
         # if train_acc > best_train_acc:
         #     best_train_acc = train_acc
