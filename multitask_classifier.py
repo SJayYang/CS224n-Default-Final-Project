@@ -173,13 +173,17 @@ def pretrain_task(args):
     # Load data
     # Create the data and its corresponding datasets and dataloader
     sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(args.sst_train,args.para_train,args.sts_train, split ='train')
+    sst_dev_data, num_labels, para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev,args.para_dev,args.sts_dev, split ='train')
 
     # SST
     sst_train_data = MaskedLMDataset(sst_train_data, args)
+    sst_dev_data = MaskedLMDataset(sst_dev_data, args)
 
     sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
                                       collate_fn=sst_train_data.collate_fn)
 
+    sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=True, batch_size=args.batch_size,
+                                      collate_fn=sst_dev_data.collate_fn)
     # Init model
     config = {'hidden_dropout_prob': args.hidden_dropout_prob,
               'num_labels': num_labels,
@@ -195,10 +199,11 @@ def pretrain_task(args):
 
     lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
-    best_train_acc = 0
+    best_dev_acc = 0
 
     pretrain_file_path = "~/Github/CS224n-Default-Final-Project"
-    loss_fn = nn.NLLLoss(ignore_index=-100)
+    loss_fn = nn.CrossEntropy(ignore_index=-100)
+    # Think about CrossEntropy
 
     for epoch in range(args.epochs):
         model.train()
@@ -225,10 +230,13 @@ def pretrain_task(args):
         train_loss = train_loss / (num_batches)
 
         train_acc, train_f1, *_ = model_eval_pretrain(sst_train_dataloader, model, device)
+        dev_acc, train_f1, *_ = model_eval_pretrain(sst_dev_dataloader, model, device)
 
-        # if train_acc > best_train_acc:
-        #     best_train_acc = train_acc
-        #     save_model(model, optimizer, args, config, pretrain_file_path)
+        if dev_acc > best_dev_acc:
+            best_dev_acc = dev_acc
+            save_model(model, optimizer, args, config, pretrain_file_path)
+        # Hold out out a bit of data for testing 
+        # Use same test and train split 
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}")
 
