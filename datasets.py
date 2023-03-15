@@ -211,6 +211,8 @@ class MaskedLMDataset(Dataset):
         self.dataset = dataset
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.mask_token = 103
+        self.ignore_label = -100
 
     def __len__(self):
         return len(self.dataset)
@@ -230,10 +232,10 @@ class MaskedLMDataset(Dataset):
         encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
         token_ids = torch.LongTensor(encoding['input_ids'])
         attention_mask = torch.LongTensor(encoding['attention_mask'])
-        labels = torch.LongTensor(labels)
+        labels = token_ids.detach().clone()
 
         # Add in masking
-        rand = torch.rand(labels.shape)
+        rand = torch.rand(token_ids.shape)
         # Need to multiply by 101 and 102 to ensure we do not mask out the CLS and SEP tokens
         BERT_mask = (rand < 0.15) * (token_ids != 101) * (token_ids != 102) * (token_ids != 0)
         selection = []
@@ -244,12 +246,14 @@ class MaskedLMDataset(Dataset):
             )
 
         for i in range(token_ids.shape[0]):
-            token_ids[i, selection[i]] = 103
+            token_ids[i, selection[i]] = self.mask_token
+        for i in range(labels.shape[0]):
+            labels[i, selection[i]] = self.ignore_label
 
         return token_ids, attention_mask, labels, sents, sent_ids
 
     def collate_fn(self, all_data):
-        token_ids, attention_mask, labels, sents, sent_ids= self.pad_data(all_data)
+        token_ids, attention_mask, labels, sents, sent_ids= self.masked_data(all_data)
 
         batched_data = {
                 'token_ids': token_ids,
