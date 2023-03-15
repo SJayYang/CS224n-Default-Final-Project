@@ -13,6 +13,7 @@ import csv
 import torch
 from torch.utils.data import Dataset
 from tokenizer import BertTokenizer
+import random
 
 
 def preprocess_string(s):
@@ -222,8 +223,7 @@ class MaskedLMDataset(Dataset):
 
     def masked_data(self, data):
 
-        # MLM Task percentage in the literature
-        mask_percentage = 0.15
+        # Change it to masking one single token
 
         sents = [x[0] for x in data]
         labels = [x[1] for x in data]
@@ -235,9 +235,17 @@ class MaskedLMDataset(Dataset):
         labels = token_ids.detach().clone()
 
         # Add in masking
-        rand = torch.rand(token_ids.shape)
-        # Need to multiply by 101 and 102 to ensure we do not mask out the CLS and SEP tokens
-        BERT_mask = (rand < 0.15) * (token_ids != 101) * (token_ids != 102) * (token_ids != 0)
+        forbidden_values = {101, 102, 0}
+
+        # generate a random index until it's not in the set of forbidden values
+        random_index = random.randint(0, len(sents) - 1)
+        while sents[random_index] in forbidden_values:
+            random_index = random.randint(0, len(sents) - 1)
+
+        # create a mask with all False values except for the randomly selected index
+        BERT_mask = [False] * len(encoding)
+        BERT_mask[random_index] = True
+
         selection = []
 
         for i in range(token_ids.shape[0]):
