@@ -206,6 +206,60 @@ class SentencePairTestDataset(Dataset):
 
         return batched_data
 
+class MaskedLMDataset(Dataset):
+    def __init__(self, dataset, args):
+        self.dataset = dataset
+        self.p = args
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        return self.dataset[idx]
+
+    def masked_data(self, data):
+
+        # MLM Task percentage in the literature
+        mask_percentage = 0.15
+
+        sents = [x[0] for x in data]
+        labels = [x[1] for x in data]
+        sent_ids = [x[2] for x in data]
+
+        encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
+        token_ids = torch.LongTensor(encoding['input_ids'])
+        attention_mask = torch.LongTensor(encoding['attention_mask'])
+        labels = torch.LongTensor(labels)
+
+        # Add in masking
+        rand = torch.rand(labels.shape)
+        # Need to multiply by 101 and 102 to ensure we do not mask out the CLS and SEP tokens
+        BERT_mask = (rand < 0.15) * (token_ids != 101) * (token_ids != 102) * (token_ids != 0)
+        selection = []
+
+        for i in range(token_ids.shape[0]):
+            selection.append(
+                torch.flatten(BERT_mask[i].nonzero()).tolist()
+            )
+
+        for i in range(token_ids.shape[0]):
+            token_ids[i, selection[i]] = 103
+
+        return token_ids, attention_mask, labels, sents, sent_ids
+
+    def collate_fn(self, all_data):
+        token_ids, attention_mask, labels, sents, sent_ids= self.pad_data(all_data)
+
+        batched_data = {
+                'token_ids': token_ids,
+                'attention_mask': attention_mask,
+                'labels': labels,
+                'sents': sents,
+                'sent_ids': sent_ids
+            }
+
+        return batched_data
 
 def load_multitask_test_data():
     paraphrase_filename = f'data/quora-test.csv'
