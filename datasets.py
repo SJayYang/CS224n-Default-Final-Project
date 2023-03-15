@@ -260,17 +260,18 @@ class MaskedLMDataset(Dataset):
         for i in range(labels.shape[0]):
             labels[i, selection[i]] = self.ignore_label
 
-        return token_ids, attention_mask, labels, sents, sent_ids
+        return token_ids, attention_mask, labels, sents, sent_ids, BERT_mask
 
     def collate_fn(self, all_data):
-        token_ids, attention_mask, labels, sents, sent_ids= self.masked_data(all_data)
+        token_ids, attention_mask, labels, sents, sent_ids, BERT_mask = self.masked_data(all_data)
 
         batched_data = {
                 'token_ids': token_ids,
                 'attention_mask': attention_mask,
                 'labels': labels,
                 'sents': sents,
-                'sent_ids': sent_ids
+                'sent_ids': sent_ids,
+                'bert_mask': BERT_mask
             }
 
         return batched_data
