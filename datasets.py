@@ -238,13 +238,13 @@ class MaskedLMDataset(Dataset):
         forbidden_values = {101, 102, 0}
 
         # generate a random index until it's not in the set of forbidden values
-        random_indices = torch.randint(0, len(encoding[0]), size=(len(sents),))
+        random_indices = torch.randint(0, len(token_ids[0]), size=(len(sents),))
         for i, idx in enumerate(random_indices):
-            while encoding[i, idx] in forbidden_values:
-                random_indices[i] = torch.randint(0, len(encoding[0]), size=(1,))
+            while token_ids[i, idx] in forbidden_values:
+                random_indices[i] = torch.randint(0, len(token_ids[0]), size=(1,))
 
         # create a mask with all False values except for the randomly selected indices
-        BERT_mask = torch.zeros(len(sents), len(encoding[0]), dtype=torch.bool)
+        BERT_mask = torch.zeros(len(sents), len(token_ids[0]), dtype=torch.bool)
         for i, idx in enumerate(random_indices):
             BERT_mask[i, idx] = True
 
