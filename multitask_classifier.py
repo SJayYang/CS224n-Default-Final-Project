@@ -230,7 +230,7 @@ def pretrain_task(args):
         #     best_train_acc = train_acc
         #     save_model(model, optimizer, args, config, pretrain_file_path)
 
-        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}")
 
 
 
