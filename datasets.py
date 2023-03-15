@@ -234,17 +234,19 @@ class MaskedLMDataset(Dataset):
         attention_mask = torch.LongTensor(encoding['attention_mask'])
         labels = token_ids.detach().clone()
 
-        # Add in masking
+        # create a set of forbidden values
         forbidden_values = {101, 102, 0}
 
         # generate a random index until it's not in the set of forbidden values
-        random_index = random.randint(0, len(sents) - 1)
-        while sents[random_index] in forbidden_values:
-            random_index = random.randint(0, len(sents) - 1)
+        random_indices = torch.randint(0, len(encoding[0]), size=(len(sents),))
+        for i, idx in enumerate(random_indices):
+            while encoding[i, idx] in forbidden_values:
+                random_indices[i] = torch.randint(0, len(encoding[0]), size=(1,))
 
-        # create a mask with all False values except for the randomly selected index
-        BERT_mask = [False] * len(encoding)
-        BERT_mask[random_index] = True
+        # create a mask with all False values except for the randomly selected indices
+        BERT_mask = torch.zeros(len(sents), len(encoding[0]), dtype=torch.bool)
+        for i, idx in enumerate(random_indices):
+            BERT_mask[i, idx] = True
 
         selection = []
 
