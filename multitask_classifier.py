@@ -15,6 +15,9 @@ from datasets import SentenceClassificationDataset, SentencePairDataset, \
 
 from evaluation import model_eval_sst, test_model_multitask
 
+sys.path.append('./pcgrad')
+from pcgrad import PCGrad
+
 
 TQDM_DISABLE=False
 
@@ -97,11 +100,11 @@ class MultitaskBERT(nn.Module):
         '''
         first_tk_1 = self.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)
         first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
-        # output = torch.cat((first_tk_1, first_tk_2), 1)
-        # output = self.dropout(output)
-        # output = self.para_proj(output)
-        output = self.cos(first_tk_1, first_tk_2)
-        output = self.relu(output)
+        output = torch.cat((first_tk_1, first_tk_2), 1)
+        output = self.dropout(output)
+        output = self.para_proj(output)
+        # output = self.cos(first_tk_1, first_tk_2)
+        # output = self.relu(output)
         return output
         
 
@@ -188,7 +191,7 @@ def train_multitask(args):
     model = model.to(device)
 
     lr = args.lr
-    optimizer = AdamW(model.parameters(), lr=lr)
+    optimizer = PCGrad(AdamW(model.parameters(), lr=lr))
     best_dev_acc = 0
 
     # Run for the specified number of epochs
@@ -201,6 +204,7 @@ def train_multitask(args):
                                                      total=min([len(sst_train_dataloader), len(para_train_dataloader), len(sts_train_dataloader)]),
                                                      desc=f'train-{epoch}', disable=TQDM_DISABLE):
             iter_loss = 0
+            losses = []
             
             # zero out gradients
             optimizer.zero_grad()
@@ -216,7 +220,8 @@ def train_multitask(args):
             logits = model.predict_sentiment(sst_b_ids, sst_b_mask)
             loss = F.cross_entropy(logits, sst_b_labels.view(-1), reduction='sum') / args.batch_size
 
-            loss.backward()
+            losses.append(loss)
+            # loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
@@ -233,10 +238,11 @@ def train_multitask(args):
             para_b_labels = para_b_labels.to(device)
 
             logits = model.predict_paraphrase(para_b_ids_1, para_b_mask_1, para_b_ids_2, para_b_mask_2)
-            # normalized_logits = torch.sigmoid(logits)
-            loss = F.mse_loss(logits, para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
+            normalized_logits = torch.sigmoid(logits)
+            loss = F.binary_cross_entropy(torch.squeeze(normalized_logits, dim=1), para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
-            loss.backward()
+            losses.append(loss)
+            # loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
@@ -257,12 +263,14 @@ def train_multitask(args):
             rescaled_logits = logits * (N_SIMILARITY_CLASSES - 1)
             loss = F.mse_loss(rescaled_logits, sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
-            loss.backward()
+            losses.append(loss)
+            # loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
             
 
+            optimizer.pc_backward(losses)
             optimizer.step()
             train_loss += iter_loss / N_TASKS
      
