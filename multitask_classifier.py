@@ -234,7 +234,7 @@ def train_multitask(args):
 
             logits = model.predict_paraphrase(para_b_ids_1, para_b_mask_1, para_b_ids_2, para_b_mask_2)
             # normalized_logits = torch.sigmoid(logits)
-            loss = F.binary_cross_entropy(logits, para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
+            loss = F.mse_loss(logits, para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
             loss.backward()
 
