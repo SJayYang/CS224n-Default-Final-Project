@@ -297,7 +297,8 @@ def train_multitask(args):
             best_dev_acc = dev_acc
             save_model(model, optimizer.optimizer, args, config, args.filepath)
 
-        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}\ntrain acc (para) :: {train_acc_para :.3f}, train acc (sst) :: {train_acc_sst :.3f}, train acc (sts) :: {train_acc_sts :.3f}\ndev acc (para) :: {dev_acc_para :.3f}, dev acc (sst) :: {dev_acc_sst :.3f}, dev acc (sts) :: {dev_acc_sts :.3f}")
+        # print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}\ntrain acc (para) :: {train_acc_para :.3f}, train acc (sst) :: {train_acc_sst :.3f}, train acc (sts) :: {train_acc_sts :.3f}\ndev acc (para) :: {dev_acc_para :.3f}, dev acc (sst) :: {dev_acc_sst :.3f}, dev acc (sts) :: {dev_acc_sts :.3f}")
+        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}\ndev acc (para) :: {dev_acc_para :.3f}, dev acc (sst) :: {dev_acc_sst :.3f}, dev acc (sts) :: {dev_acc_sts :.3f}")
 
 
 
