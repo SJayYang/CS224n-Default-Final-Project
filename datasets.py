@@ -231,7 +231,9 @@ class MaskedLMDataset(Dataset):
             labels = [x[1] for x in data]
             sent_ids = [x[2] for x in data]
         else:
-            sents = [x[0] for x in data].extend([x[1] for x in data])
+            sents = [x[0] for x in data]
+            sents2 = [x[1] for x in data]
+            sents.extend(sents2)
             sent_ids = [x[2] for x in data]
 
 
