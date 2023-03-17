@@ -1,6 +1,7 @@
 import time, random, numpy as np, argparse, sys, re, os
 from types import SimpleNamespace
 
+import pickle
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -44,11 +45,11 @@ class MultitaskBERT(nn.Module):
     - Paraphrase detection (predict_paraphrase)
     - Semantic Textual Similarity (predict_similarity)
     '''
-    def __init__(self, config, model):
+    def __init__(self, config, pretrain_file_path):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        self.bert = model
+        self.bert = pickle.load(pretrain_file_path)
         # self.bert.load_state_dict(saved['model'])
         for param in self.bert.parameters():
             if config.option == 'pretrain':
@@ -291,7 +292,8 @@ def pretrain_task(args):
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
-            save_model(model, optimizer, args, config, pretrain_file_path)
+            pickle.dump(model, pretrain_file_path)
+            # save_model(model, optimizer, args, config, pretrain_file_path)
         # Hold out out a bit of data for testing 
         # Use same test and train split 
 
