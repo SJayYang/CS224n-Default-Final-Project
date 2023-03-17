@@ -33,6 +33,7 @@ BERT_HIDDEN_SIZE = 768
 N_SENTIMENT_CLASSES = 5
 N_SIMILARITY_CLASSES = 6
 N_TASKS = 3
+pretrain_file_path="/home/ubuntu/Github/CS224n-Default-Final-Project/MLMModel.pt"
 
 
 class MultitaskBERT(nn.Module):
@@ -43,11 +44,11 @@ class MultitaskBERT(nn.Module):
     - Paraphrase detection (predict_paraphrase)
     - Semantic Textual Similarity (predict_similarity)
     '''
-   def __init__(self, config, pretrained_path):
+    def __init__(self, config, pretrain_file_path):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        saved = torch.load(pretrained_path)
+        saved = torch.load(pretrain_file_path)
         self.bert = BertModel.from_pretrained('bert-base-uncased')
         self.bert.load_state_dict(saved['model'])
         for param in self.bert.parameters():
@@ -225,7 +226,6 @@ def pretrain_task(args):
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
-    pretrain_file_path = "/home/ubuntu/Github/CS224n-Default-Final-Project/MLMModel.pt"
     loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
     # Think about CrossEntropy
 
