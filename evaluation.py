@@ -69,26 +69,23 @@ def model_eval_pretrain(dataloader, model, device):
 
 
         # Get the indices for which words we need to check
-        BERT_mask = batch['BERT_mask']
-        num_true = BERT_mask.sum(dim=1)
-        indices = torch.nonzero(num_true == 1, as_tuple=True)[1]
-        indices[num_true != 1] = -1
-        indices = indices.tolist()
+        BERT_mask = batch['bert_mask']
+        BERT_mask = BERT_mask.to(device)
         # Confirm use TODO
 
         b_ids = b_ids.to(device)
         b_mask = b_mask.to(device)
+        b_labels = b_labels.to(device)
 
         logits = model.predict_masked_tokens(b_ids, b_mask)
         logits = logits.detach().cpu().numpy()
-        preds = np.argmax(logits, axis=1).flatten()
+        preds = np.argmax(logits, axis=2).flatten()
         # Which of the 55 words do you actually care about
-        import pdb
-        pdb.set_trace()
 
         # Check to see which word do we care about from b_labels
         # TODO
         b_labels = b_labels.flatten()
+        b_labels = b_labels.detach().cpu().numpy()
         y_true.extend(b_labels)
         y_pred.extend(preds)
         sents.extend(b_sents)
