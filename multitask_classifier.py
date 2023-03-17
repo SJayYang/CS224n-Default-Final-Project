@@ -49,14 +49,8 @@ class MultitaskBERT(nn.Module):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-<<<<<<< HEAD
         self.bert = pickle.load(pretrain_file_path)
         # self.bert.load_state_dict(saved['model'])
-=======
-        saved = torch.load(pretrain_file_path)
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
-        self.bert.load_state_dict(saved['model'])
->>>>>>> 2f272b1e3c46394a7b25b4702350ef9242ebd5ca
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
