@@ -44,13 +44,12 @@ class MultitaskBERT(nn.Module):
     - Paraphrase detection (predict_paraphrase)
     - Semantic Textual Similarity (predict_similarity)
     '''
-    def __init__(self, config, pretrained_path):
+    def __init__(self, config, model):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        saved = torch.load(pretrained_path)
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
-        self.bert.load_state_dict(saved['model'])
+        self.bert = model
+        # self.bert.load_state_dict(saved['model'])
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
@@ -299,7 +298,7 @@ def pretrain_task(args):
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}")
 
 ## Currently only trains on sst dataset
-def train_multitask(args):
+def train_multitask(args, model):
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
@@ -342,7 +341,7 @@ def train_multitask(args):
 
     config = SimpleNamespace(**config)
 
-    model = MultitaskBERT(config)
+    model = MultitaskBERT(config, model)
     model = model.to(device)
 
     lr = args.lr
@@ -499,5 +498,9 @@ if __name__ == "__main__":
     args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
     # pretrain_task(args)
-    train_multitask(args, pretrain_file_path)
+    saved = torch.load(pretrain_file_path)
+    config = saved['model_config']
+    model_weights = saved['model']
+    model = PretrainedDataBERT(config=config)
+    train_multitask(args, model)
     test_model(args)
