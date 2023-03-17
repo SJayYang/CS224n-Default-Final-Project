@@ -223,7 +223,7 @@ def pretrain_task(args):
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
-    pretrain_file_path = "~/Github/CS224n-Default-Final-Project"
+    pretrain_file_path = "/home/ubuntu/Github/CS224n-Default-Final-Project/MLMModel.pt"
     loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
     # Think about CrossEntropy
 
@@ -246,7 +246,7 @@ def pretrain_task(args):
 
             optimizer.zero_grad()
             logits = model.predict_masked_tokens(sst_b_ids, sst_b_mask)
-            loss = loss_fn(logits.view(-1, config.vocab_size), b_labels.view(-1)) / args.batch_size
+            loss = loss_fn(logits.view(-1, config.vocab_size), sst_b_labels.view(-1)) / args.batch_size
 
             loss.backward()
             num_batches += 1
