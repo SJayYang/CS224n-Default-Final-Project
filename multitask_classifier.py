@@ -278,17 +278,18 @@ def train_multitask(args):
         train_loss = train_loss / (num_batches)
 
         # new code
-        train_eval = model_eval_multitask(sst_train_dataloader, para_train_dataloader, sts_train_dataloader, model, device)
-        train_acc_para = train_eval[0]
-        train_acc_sst = train_eval[3]
-        train_acc_sts = train_eval[6]
+        # train_eval = model_eval_multitask(sst_train_dataloader, para_train_dataloader, sts_train_dataloader, model, device)
+        # train_acc_para = train_eval[0]
+        # train_acc_sst = train_eval[3]
+        # train_acc_sts = train_eval[6]
 
         dev_eval = model_eval_multitask(sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device)
         dev_acc_para = dev_eval[0]
         dev_acc_sst = dev_eval[3]
         dev_acc_sts = dev_eval[6]
 
-        # score is sum of dev accuracies
+        # sum accuracies
+        train_acc = train_acc_para + train_acc_sst + train_acc_sts
         dev_acc = dev_acc_para + dev_acc_sst + dev_acc_sts
 
         # if score is best so far, save model
