@@ -33,7 +33,6 @@ BERT_HIDDEN_SIZE = 768
 N_SENTIMENT_CLASSES = 5
 N_SIMILARITY_CLASSES = 6
 N_TASKS = 3
-pretrain_file_path = "/home/ubuntu/Github/CS224n-Default-Final-Project/MLMModel.pt"
 
 
 class MultitaskBERT(nn.Module):
@@ -44,12 +43,11 @@ class MultitaskBERT(nn.Module):
     - Paraphrase detection (predict_paraphrase)
     - Semantic Textual Similarity (predict_similarity)
     '''
-    def __init__(self, config, model):
+    def __init__(self, config):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        self.bert = model
-        # self.bert.load_state_dict(saved['model'])
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
@@ -225,6 +223,7 @@ def pretrain_task(args):
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
 
+    pretrain_file_path = "/home/ubuntu/Github/CS224n-Default-Final-Project/MLMModel.pt"
     loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
     # Think about CrossEntropy
 
@@ -497,10 +496,6 @@ if __name__ == "__main__":
     args = get_args()
     args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
-    # pretrain_task(args)
-    saved = torch.load(pretrain_file_path)
-    config = saved['model_config']
-    model_weights = saved['model']
-    model = PretrainedDataBERT(config=config)
-    train_multitask(args, model)
+    pretrain_task(args)
+    # train_multitask(args)
     test_model(args)
