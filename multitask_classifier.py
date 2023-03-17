@@ -283,7 +283,7 @@ def train_multitask(args):
         train_acc_sst = train_eval[3]
         train_acc_sts = train_eval[6]
 
-        dev_eval = model_eval_multitask(sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader)
+        dev_eval = model_eval_multitask(sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device)
         dev_acc_para = dev_eval[0]
         dev_acc_sst = dev_eval[3]
         dev_acc_sts = dev_eval[6]
