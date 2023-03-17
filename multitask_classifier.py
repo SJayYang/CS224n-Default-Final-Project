@@ -282,7 +282,7 @@ def train_multitask(args):
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
-            save_model(model, optimizer, args, config, args.filepath)
+            save_model(model, optimizer.optimizer, args, config, args.filepath)
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
