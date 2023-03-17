@@ -15,6 +15,9 @@ from datasets import SentenceClassificationDataset, SentencePairDataset, \
 
 from evaluation import model_eval_sst, test_model_multitask
 
+sys.path.append('./pcgrad')
+from pcgrad import PCGrad
+
 
 TQDM_DISABLE=False
 
@@ -186,7 +189,7 @@ def train_multitask(args):
     model = model.to(device)
 
     lr = args.lr
-    optimizer = AdamW(model.parameters(), lr=lr)
+    optimizer = PCGrad(AdamW(model.parameters(), lr=lr))
     best_dev_acc = 0
 
     # Run for the specified number of epochs
@@ -199,6 +202,7 @@ def train_multitask(args):
                                                      total=min([len(sst_train_dataloader), len(para_train_dataloader), len(sts_train_dataloader)]),
                                                      desc=f'train-{epoch}', disable=TQDM_DISABLE):
             iter_loss = 0
+            losses = []
             
             # zero out gradients
             optimizer.zero_grad()
@@ -214,7 +218,8 @@ def train_multitask(args):
             logits = model.predict_sentiment(sst_b_ids, sst_b_mask)
             loss = F.cross_entropy(logits, sst_b_labels.view(-1), reduction='sum') / args.batch_size
 
-            loss.backward()
+            losses.append(loss)
+            # loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
@@ -235,7 +240,8 @@ def train_multitask(args):
             normalized_logits = torch.sigmoid(logits)
             loss = F.binary_cross_entropy(torch.squeeze(normalized_logits, dim=1), para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
-            loss.backward()
+            losses.append(loss)
+            # loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
@@ -257,12 +263,14 @@ def train_multitask(args):
             loss = F.mse_loss(torch.squeeze(rescaled_logits, dim=1), sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
             # loss.requires_grad = True
 
-            loss.backward()
+            losses.append(loss)
+            # loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
             
 
+            optimizer.pc_backward(losses)
             optimizer.step()
             train_loss += iter_loss / N_TASKS
      
@@ -274,7 +282,7 @@ def train_multitask(args):
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
-            save_model(model, optimizer, args, config, args.filepath)
+            save_model(model, optimizer.optimizer, args, config, args.filepath)
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
