@@ -153,6 +153,15 @@ class PretrainedDataBERT(nn.Module):
         prediction_scores = torch.nn.functional.log_softmax(hidden_states, dim=-1)
         return prediction_scores
 
+    def forward(self, input_ids, attention_mask):
+        'Takes a batch of sentences and produces embeddings for them.'
+        # The final BERT embedding is the hidden state of [CLS] token (the first token)
+        # Here, you can start by just returning the embeddings straight from BERT.
+        # When thinking of improvements, you can later try modifying this
+        # (e.g., by adding other layers).
+        first_tk = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
+        return first_tk
+
 
 
 
