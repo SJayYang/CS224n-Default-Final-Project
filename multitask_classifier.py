@@ -299,7 +299,7 @@ def pretrain_task(args):
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}")
 
 ## Currently only trains on sst dataset
-def train_multitask(args):
+def train_multitask(args, pretrain_file_path):
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
@@ -342,7 +342,7 @@ def train_multitask(args):
 
     config = SimpleNamespace(**config)
 
-    model = MultitaskBERT(config)
+    model = MultitaskBERT(config, pretrain_file_path)
     model = model.to(device)
 
     lr = args.lr
