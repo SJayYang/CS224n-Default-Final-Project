@@ -289,7 +289,7 @@ def train_multitask(args):
         dev_acc_sts = dev_eval[6]
 
         # sum accuracies
-        train_acc = train_acc_para + train_acc_sst + train_acc_sts
+        # train_acc = train_acc_para + train_acc_sst + train_acc_sts
         dev_acc = dev_acc_para + dev_acc_sst + dev_acc_sts
 
         # if score is best so far, save model
