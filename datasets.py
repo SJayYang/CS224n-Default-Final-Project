@@ -208,12 +208,13 @@ class SentencePairTestDataset(Dataset):
         return batched_data
 
 class MaskedLMDataset(Dataset):
-    def __init__(self, dataset, args):
+    def __init__(self, dataset, args, single):
         self.dataset = dataset
         self.p = args
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.mask_token = 103
         self.ignore_label = -100
+        self.single = single
 
     def __len__(self):
         return len(self.dataset)
@@ -225,9 +226,14 @@ class MaskedLMDataset(Dataset):
 
         # Change it to masking one single token
 
-        sents = [x[0] for x in data]
-        labels = [x[1] for x in data]
-        sent_ids = [x[2] for x in data]
+        if self.single:
+            sents = [x[0] for x in data]
+            labels = [x[1] for x in data]
+            sent_ids = [x[2] for x in data]
+        else:
+            sents = [x[0] for x in data].extend([x[1] for x in data])
+            sent_ids = [x[2] for x in data]
+
 
         encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
         token_ids = torch.LongTensor(encoding['input_ids'])
