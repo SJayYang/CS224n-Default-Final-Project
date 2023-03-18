@@ -190,7 +190,7 @@ def train_multitask(args):
 
     lr = args.lr
     optimizer = PCGrad(AdamW(model.parameters(), lr=lr))
-    best_dev_acc = 0
+    best_dev_score = 0
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
@@ -277,28 +277,29 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
 
-        # new code
-        # train_eval = model_eval_multitask(sst_train_dataloader, para_train_dataloader, sts_train_dataloader, model, device)
-        # train_acc_para = train_eval[0]
-        # train_acc_sst = train_eval[3]
-        # train_acc_sts = train_eval[6]
+        # evaluate on training set
+        train_eval = model_eval_multitask(sst_train_dataloader, para_train_dataloader, sts_train_dataloader, model, device)
+        train_acc_para = train_eval[0]
+        train_acc_sst = train_eval[3]
+        train_acc_sts = train_eval[6]
 
+        # evaluate on dev set
         dev_eval = model_eval_multitask(sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device)
         dev_acc_para = dev_eval[0]
         dev_acc_sst = dev_eval[3]
         dev_acc_sts = dev_eval[6]
 
-        # sum accuracies
-        # train_acc = train_acc_para + train_acc_sst + train_acc_sts
-        dev_acc = dev_acc_para + dev_acc_sst + dev_acc_sts
+        # score is sum of accuracies
+        train_score = train_acc_para + train_acc_sst + train_acc_sts
+        dev_score = dev_acc_para + dev_acc_sst + dev_acc_sts
 
         # if score is best so far, save model
-        if dev_acc > best_dev_acc:
-            best_dev_acc = dev_acc
+        if dev_score > best_dev_score:
+            best_dev_score = dev_score
             save_model(model, optimizer.optimizer, args, config, args.filepath)
 
-        # print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}\ntrain acc (para) :: {train_acc_para :.3f}, train acc (sst) :: {train_acc_sst :.3f}, train acc (sts) :: {train_acc_sts :.3f}\ndev acc (para) :: {dev_acc_para :.3f}, dev acc (sst) :: {dev_acc_sst :.3f}, dev acc (sts) :: {dev_acc_sts :.3f}")
-        print(f"Epoch {epoch}: train loss :: {train_loss :.3f},  dev acc :: {dev_acc :.3f}\ndev acc (para) :: {dev_acc_para :.3f}, dev acc (sst) :: {dev_acc_sst :.3f}, dev acc (sts) :: {dev_acc_sts :.3f}")
+        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train score :: {train_score :.3f}, dev score :: {dev_score :.3f}\ntrain acc (para) :: {train_acc_para :.3f}, train acc (sst) :: {train_acc_sst :.3f}, train acc (sts) :: {train_acc_sts :.3f}\ndev acc (para) :: {dev_acc_para :.3f}, dev acc (sst) :: {dev_acc_sst :.3f}, dev acc (sts) :: {dev_acc_sts :.3f}")
+        # print(f"Epoch {epoch}: train loss :: {train_loss :.3f},  dev score :: {dev_score :.3f}")
 
 
 
