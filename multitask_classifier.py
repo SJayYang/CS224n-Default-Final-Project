@@ -450,13 +450,13 @@ def train_multitask(args, pretrain_file_path):
 
 
 
-def test_model(args):
+def test_model(args, pretrain_file_path):
     with torch.no_grad():
         device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
         saved = torch.load(args.filepath)
         config = saved['model_config']
 
-        model = MultitaskBERT(config)
+        model = MultitaskBERT(config, pretrain_file_path)
         model.load_state_dict(saved['model'])
         model = model.to(device)
         print(f"Loaded model to test from {args.filepath}")
@@ -507,6 +507,6 @@ if __name__ == "__main__":
     args = get_args()
     args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
-    # pretrain_task(args)
+    pretrain_task(args)
     train_multitask(args, pretrain_file_path)
-    test_model(args)
+    test_model(args, pretrain_file_path)
