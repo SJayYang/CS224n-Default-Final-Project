@@ -198,6 +198,13 @@ def train_multitask(args):
         train_loss = 0
         num_batches = 0
 
+        sst_y_true = []
+        sst_y_pred = []
+        para_y_true = []
+        para_y_pred = []
+        sts_y_true = []
+        sts_y_pred = []
+
         for sst_train, para_train, sts_train in tqdm(zip(sst_train_dataloader, para_train_dataloader, sts_train_dataloader),
                                                      total=min([len(sst_train_dataloader), len(para_train_dataloader), len(sts_train_dataloader)]),
                                                      desc=f'train-{epoch}', disable=TQDM_DISABLE):
@@ -224,6 +231,13 @@ def train_multitask(args):
             iter_loss += loss.item()
             num_batches += 1
 
+            # update predicted/actual lists
+            y_hat = logits.argmax(dim=-1).flatten().cpu().numpy()
+            b_labels = sst_b_labels.flatten().cpu().numpy()
+
+            sst_y_pred.extend(y_hat)
+            sst_y_true.extend(b_labels)
+
             # Paraphrase
             para_b_ids_1, para_b_ids_2, para_b_mask_1, para_b_mask_2, para_b_labels = (para_train['token_ids_1'], para_train['token_ids_2'], 
                                                               para_train['attention_mask_1'], para_train['attention_mask_2'],
@@ -245,6 +259,13 @@ def train_multitask(args):
 
             iter_loss += loss.item()
             num_batches += 1
+
+            # update predicted/actual lists
+            y_hat = logits.sigmoid().round().flatten().cpu().numpy()
+            b_labels = para_b_labels.flatten().cpu().numpy()
+
+            para_y_pred.extend(y_hat)
+            para_y_true.extend(b_labels)
 
             # STS
             sts_b_ids_1, sts_b_ids_2, sts_b_mask_1, sts_b_mask_2, sts_b_labels = (sts_train['token_ids_1'], sts_train['token_ids_2'], 
@@ -268,8 +289,13 @@ def train_multitask(args):
 
             iter_loss += loss.item()
             num_batches += 1
+
+            # update predicted/actual lists
+            y_hat = logits.flatten().cpu().numpy()
+            b_labels = sts_b_labels.flatten().cpu().numpy()
             
 
+            # run gradient surgery backprop and update optimizer
             optimizer.pc_backward(losses)
             optimizer.step()
             train_loss += iter_loss / N_TASKS
@@ -278,10 +304,9 @@ def train_multitask(args):
         train_loss = train_loss / (num_batches)
 
         # evaluate on training set
-        train_eval = model_eval_multitask(sst_train_dataloader, para_train_dataloader, sts_train_dataloader, model, device)
-        train_acc_para = train_eval[0]
-        train_acc_sst = train_eval[3]
-        train_acc_sts = train_eval[6]
+        train_acc_para = np.mean(np.array(para_y_pred) == np.array(para_y_true))
+        train_acc_sst = np.mean(np.array(sst_y_pred) == np.array(sst_y_true))
+        train_acc_sts = np.corrcoef(sts_y_pred, sts_y_true)[1][0]
 
         # evaluate on dev set
         dev_eval = model_eval_multitask(sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device)
@@ -296,7 +321,8 @@ def train_multitask(args):
         # if score is best so far, save model
         if dev_score > best_dev_score:
             best_dev_score = dev_score
-            save_model(model, optimizer.optimizer, args, config, args.filepath)
+            # save_model(model, optimizer.optimizer, args, config, args.filepath)
+            save_model(model, optimizer, args, config, args.filepath)
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train score :: {train_score :.3f}, dev score :: {dev_score :.3f}")
         # print(f"Epoch {epoch}: train loss :: {train_loss :.3f},  dev score :: {dev_score :.3f}")
