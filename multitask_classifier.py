@@ -49,7 +49,8 @@ class MultitaskBERT(nn.Module):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        self.bert = pickle.load(pretrain_file_path)
+        with open(pretrain_file_path, 'rb') as f:
+            self.bert = pickle.load(f)
         # self.bert.load_state_dict(saved['model'])
         for param in self.bert.parameters():
             if config.option == 'pretrain':
@@ -75,7 +76,7 @@ class MultitaskBERT(nn.Module):
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
-        first_tk = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
+        first_tk = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         return first_tk
 
 
@@ -301,10 +302,8 @@ def pretrain_task(args):
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
-            pickle.dump(model, pretrain_file_path)
-            # save_model(model, optimizer, args, config, pretrain_file_path)
-        # Hold out out a bit of data for testing 
-        # Use same test and train split 
+            with open(pretrain_file_path, 'wb') as f:
+                pickle.dump(model, f)
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}")
 
@@ -426,7 +425,7 @@ def train_multitask(args, pretrain_file_path):
             first_tk_2 = model.forward(input_ids=sts_b_ids_2, attention_mask=sts_b_mask_2)
             
             loss = F.cosine_embedding_loss(first_tk_1, first_tk_2, sts_b_labels.view(-1)) / args.batch_size
-            loss.requires_grad = True
+            # loss.requires_grad = True
 
             loss.backward()
 
