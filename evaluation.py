@@ -57,6 +57,45 @@ def model_eval_sst(dataloader, model, device):
 
     return acc, f1, y_pred, y_true, sents, sent_ids
 
+def model_eval_pretrain(dataloader, model, device):
+    model.eval()  # switch to eval model, will turn off randomness like dropout
+    y_true = []
+    y_pred = []
+    sents = []
+    sent_ids = []
+    for step, batch in enumerate(tqdm(dataloader, desc=f'eval', disable=TQDM_DISABLE)):
+        b_ids, b_mask, b_labels, b_sents, b_sent_ids = batch['token_ids'],batch['attention_mask'],  \
+                                                        batch['labels'], batch['sents'], batch['sent_ids']
+
+
+        # Get the indices for which words we need to check
+        BERT_mask = batch['bert_mask']
+        BERT_mask = BERT_mask.to(device)
+        # Confirm use TODO
+
+        b_ids = b_ids.to(device)
+        b_mask = b_mask.to(device)
+        b_labels = b_labels.to(device)
+
+        logits = model.predict_masked_tokens(b_ids, b_mask)
+        logits = logits.detach().cpu().numpy()
+        preds = np.argmax(logits, axis=2).flatten()
+        # Which of the 55 words do you actually care about
+
+        # Check to see which word do we care about from b_labels
+        # TODO
+        b_labels = b_labels.flatten()
+        b_labels = b_labels.detach().cpu().numpy()
+        y_true.extend(b_labels)
+        y_pred.extend(preds)
+        sents.extend(b_sents)
+        sent_ids.extend(b_sent_ids)
+
+    f1 = f1_score(y_true, y_pred, average='macro')
+    acc = accuracy_score(y_true, y_pred)
+
+    return acc, f1, y_pred, y_true, sents, sent_ids
+
 # Perform model evaluation in terms by averaging accuracies across tasks.
 def model_eval_multitask(sentiment_dataloader,
                          paraphrase_dataloader,
