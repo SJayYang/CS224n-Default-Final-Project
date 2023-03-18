@@ -232,8 +232,8 @@ def train_multitask(args):
             num_batches += 1
 
             # update predicted/actual lists
-            y_hat = logits.argmax(dim=-1).flatten().cpu().numpy()
-            b_labels = sst_b_labels.flatten().cpu().numpy()
+            y_hat = logits.detach().argmax(dim=-1).flatten().cpu().numpy()
+            b_labels = sst_b_labels.detach().flatten().cpu().numpy()
 
             sst_y_pred.extend(y_hat)
             sst_y_true.extend(b_labels)
@@ -261,8 +261,8 @@ def train_multitask(args):
             num_batches += 1
 
             # update predicted/actual lists
-            y_hat = logits.sigmoid().round().flatten().cpu().numpy()
-            b_labels = para_b_labels.flatten().cpu().numpy()
+            y_hat = logits.detach().sigmoid().round().flatten().cpu().numpy()
+            b_labels = para_b_labels.detach().flatten().cpu().numpy()
 
             para_y_pred.extend(y_hat)
             para_y_true.extend(b_labels)
@@ -291,8 +291,8 @@ def train_multitask(args):
             num_batches += 1
 
             # update predicted/actual lists
-            y_hat = logits.flatten().cpu().numpy()
-            b_labels = sts_b_labels.flatten().cpu().numpy()
+            y_hat = logits.detach().flatten().cpu().numpy()
+            b_labels = sts_b_labels.detach().flatten().cpu().numpy()
             
 
             # run gradient surgery backprop and update optimizer
