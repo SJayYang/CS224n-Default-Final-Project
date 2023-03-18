@@ -51,7 +51,6 @@ class MultitaskBERT(nn.Module):
         # Pretrain mode does not require updating bert paramters.
         with open(pretrain_file_path, 'rb') as f:
             self.bert = pickle.load(f)
-        # self.bert.load_state_dict(saved['model'])
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
@@ -142,6 +141,7 @@ class PretrainedDataBERT(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
         self.layer_norm = nn.LayerNorm(config.hidden_size)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.linear = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
     def predict_masked_tokens(self, input_ids, attention_mask): 
@@ -150,6 +150,7 @@ class PretrainedDataBERT(nn.Module):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.activation(hidden_states)
         hidden_states = self.layer_norm(hidden_states)
+        hidden_states = self.dropout(hidden_states)
         hidden_states = self.linear(hidden_states)
         prediction_scores = torch.nn.functional.log_softmax(hidden_states, dim=-1)
         return prediction_scores
@@ -421,11 +422,10 @@ def train_multitask(args, pretrain_file_path):
             sts_b_labels = sts_b_labels.to(device)
 
             
-            first_tk_1 = model.forward(input_ids=sts_b_ids_1, attention_mask=sts_b_mask_1)
-            first_tk_2 = model.forward(input_ids=sts_b_ids_2, attention_mask=sts_b_mask_2)
-            
-            loss = F.cosine_embedding_loss(first_tk_1, first_tk_2, sts_b_labels.view(-1)) / args.batch_size
-            # loss.requires_grad = True
+            logits = model.predict_similarity(sts_b_ids_1, sts_b_mask_1, sts_b_ids_2, sts_b_mask_2)
+
+            rescaled_logits = logits * (N_SIMILARITY_CLASSES - 1)
+            loss = F.mse_loss(rescaled_logits, sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
             loss.backward()
 
