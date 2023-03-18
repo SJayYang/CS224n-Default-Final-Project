@@ -189,7 +189,8 @@ def train_multitask(args):
     model = model.to(device)
 
     lr = args.lr
-    optimizer = PCGrad(AdamW(model.parameters(), lr=lr))
+    # optimizer = PCGrad(AdamW(model.parameters(), lr=lr))
+    optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_score = 0
 
     # Run for the specified number of epochs
@@ -209,7 +210,7 @@ def train_multitask(args):
                                                      total=min([len(sst_train_dataloader), len(para_train_dataloader), len(sts_train_dataloader)]),
                                                      desc=f'train-{epoch}', disable=TQDM_DISABLE):
             iter_loss = 0
-            losses = []
+            # losses = []
             
             # zero out gradients
             optimizer.zero_grad()
@@ -225,8 +226,8 @@ def train_multitask(args):
             logits = model.predict_sentiment(sst_b_ids, sst_b_mask)
             loss = F.cross_entropy(logits, sst_b_labels.view(-1), reduction='sum') / args.batch_size
 
-            losses.append(loss)
-            # loss.backward()
+            # losses.append(loss)
+            loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
@@ -250,12 +251,11 @@ def train_multitask(args):
             para_b_labels = para_b_labels.to(device)
 
             logits = model.predict_paraphrase(para_b_ids_1, para_b_mask_1, para_b_ids_2, para_b_mask_2)
-            # check where to put sigmoid (if anywhere)
             normalized_logits = torch.sigmoid(logits)
             loss = F.binary_cross_entropy(torch.squeeze(normalized_logits, dim=1), para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
-            losses.append(loss)
-            # loss.backward()
+            # losses.append(loss)
+            loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
@@ -282,10 +282,9 @@ def train_multitask(args):
             rescaled_logits = torch.sigmoid(logits) * (N_SIMILARITY_CLASSES - 1)
             # rescaled_logits = logits * (N_SIMILARITY_CLASSES - 1)
             loss = F.mse_loss(torch.squeeze(rescaled_logits, dim=1), sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
-            # loss.requires_grad = True
 
-            losses.append(loss)
-            # loss.backward()
+            # losses.append(loss)
+            loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
@@ -293,10 +292,12 @@ def train_multitask(args):
             # update predicted/actual lists
             y_hat = logits.detach().flatten().cpu().numpy()
             b_labels = sts_b_labels.detach().flatten().cpu().numpy()
-            
+
+            sts_y_pred.extend(y_hat)
+            sts_y_true.extend(b_labels)
 
             # run gradient surgery backprop and update optimizer
-            optimizer.pc_backward(losses)
+            # optimizer.pc_backward(losses)
             optimizer.step()
             train_loss += iter_loss / N_TASKS
      
