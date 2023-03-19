@@ -115,9 +115,9 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
         hidden_states_1 = self.bert(input_ids=input_ids_1, attention_mask=attention_mask_1)['last_hidden_state']
-        hidden_states_1 = self.bert(input_ids=input_ids_2, attention_mask=attention_mask_2)['last_hidden_state']
+        hidden_states_2 = self.bert(input_ids=input_ids_2, attention_mask=attention_mask_2)['last_hidden_state']
         mean_pooled_output_1 = torch.mean(hidden_states_1, dim=1)
-        mean_pooled_output_2 = torch.mean(hidden_states_1, dim=1)
+        mean_pooled_output_2 = torch.mean(hidden_states_2, dim=1)
         output = self.cos(mean_pooled_output_1, mean_pooled_output_2)
         output = self.relu(output)
         return output
