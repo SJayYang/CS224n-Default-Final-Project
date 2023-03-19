@@ -75,7 +75,7 @@ class MultitaskBERT(nn.Module):
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
-        first_tk = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+        first_tk = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
         return first_tk
 
 
@@ -114,12 +114,11 @@ class MultitaskBERT(nn.Module):
         Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
-        first_tk_1 = self.forward(input_ids=input_ids_1, attention_mask=attention_mask_1)
-        first_tk_2 = self.forward(input_ids=input_ids_2, attention_mask=attention_mask_2)
-        output = torch.cat((first_tk_1, first_tk_2), 1)
-        # output = self.dropout(output)
-        # output = self.sim_proj(output)
-        output = self.cos(first_tk_1, first_tk_2)
+        hidden_states_1 = self.bert(input_ids=input_ids_1, attention_mask=attention_mask_1)['last_hidden_state']
+        hidden_states_2 = self.bert(input_ids=input_ids_2, attention_mask=attention_mask_2)['last_hidden_state']
+        mean_pooled_output_1 = torch.mean(hidden_states_1, dim=1)
+        mean_pooled_output_2 = torch.mean(hidden_states_2, dim=1)
+        output = self.cos(mean_pooled_output_1, mean_pooled_output_2)
         output = self.relu(output)
         return output
 
@@ -146,7 +145,7 @@ class PretrainedDataBERT(nn.Module):
 
     def predict_masked_tokens(self, input_ids, attention_mask): 
         # Basic MLM architecture
-        hidden_states = self.bert(input_ids=input_ids, attention_mask=attention_mask)['last_hidden_state']
+        hidden_states = self.forward(input_ids=input_ids, attention_mask=attention_mask)['last_hidden_state']
         hidden_states = self.dense(hidden_states)
         hidden_states = self.activation(hidden_states)
         hidden_states = self.layer_norm(hidden_states)
@@ -161,8 +160,8 @@ class PretrainedDataBERT(nn.Module):
         # Here, you can start by just returning the embeddings straight from BERT.
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
-        first_tk = self.bert(input_ids=input_ids, attention_mask=attention_mask)['pooler_output']
-        return first_tk
+        output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+        return output
 
 
 
