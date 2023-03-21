@@ -14,7 +14,10 @@ from tqdm import tqdm
 from datasets import SentenceClassificationDataset, SentencePairDataset, \
     load_multitask_data, load_multitask_test_data, MaskedLMDataset
 
-from evaluation import model_eval_sst, test_model_multitask, model_eval_pretrain
+from evaluation import model_eval_sst, test_model_multitask, model_eval_multitask, model_eval_pretrain
+
+sys.path.append('./pcgrad')
+from pcgrad import PCGrad
 
 
 TQDM_DISABLE=False
@@ -103,6 +106,8 @@ class MultitaskBERT(nn.Module):
         output = torch.cat((first_tk_1, first_tk_2), 1)
         output = self.dropout(output)
         output = self.para_proj(output)
+        # output = self.cos(first_tk_1, first_tk_2)
+        # output = self.relu(output)
         return output
         
 
@@ -355,8 +360,9 @@ def train_multitask(args, pretrain_file_path):
     model = model.to(device)
 
     lr = args.lr
+    # optimizer = PCGrad(AdamW(model.parameters(), lr=lr))
     optimizer = AdamW(model.parameters(), lr=lr)
-    best_dev_acc = 0
+    best_dev_score = 0
 
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
@@ -364,10 +370,18 @@ def train_multitask(args, pretrain_file_path):
         train_loss = 0
         num_batches = 0
 
+        sst_y_true = []
+        sst_y_pred = []
+        para_y_true = []
+        para_y_pred = []
+        sts_y_true = []
+        sts_y_pred = []
+
         for sst_train, para_train, sts_train in tqdm(zip(sst_train_dataloader, para_train_dataloader, sts_train_dataloader),
                                                      total=min([len(sst_train_dataloader), len(para_train_dataloader), len(sts_train_dataloader)]),
                                                      desc=f'train-{epoch}', disable=TQDM_DISABLE):
             iter_loss = 0
+            # losses = []
             
             # zero out gradients
             optimizer.zero_grad()
@@ -383,10 +397,18 @@ def train_multitask(args, pretrain_file_path):
             logits = model.predict_sentiment(sst_b_ids, sst_b_mask)
             loss = F.cross_entropy(logits, sst_b_labels.view(-1), reduction='sum') / args.batch_size
 
+            # losses.append(loss)
             loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
+
+            # update predicted/actual lists
+            y_hat = logits.detach().argmax(dim=-1).flatten().cpu().numpy()
+            b_labels = sst_b_labels.detach().flatten().cpu().numpy()
+
+            sst_y_pred.extend(y_hat)
+            sst_y_true.extend(b_labels)
 
             # Paraphrase
             para_b_ids_1, para_b_ids_2, para_b_mask_1, para_b_mask_2, para_b_labels = (para_train['token_ids_1'], para_train['token_ids_2'], 
@@ -400,14 +422,22 @@ def train_multitask(args, pretrain_file_path):
             para_b_labels = para_b_labels.to(device)
 
             logits = model.predict_paraphrase(para_b_ids_1, para_b_mask_1, para_b_ids_2, para_b_mask_2)
-            # check where to put sigmoid (if anywhere)
             normalized_logits = torch.sigmoid(logits)
             loss = F.binary_cross_entropy(torch.squeeze(normalized_logits, dim=1), para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
+            # loss = F.binary_cross_entropy(logits, para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
+            # losses.append(loss)
             loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
+
+            # update predicted/actual lists
+            y_hat = logits.detach().sigmoid().round().flatten().cpu().numpy()
+            b_labels = para_b_labels.detach().flatten().cpu().numpy()
+
+            para_y_pred.extend(y_hat)
+            para_y_true.extend(b_labels)
 
             # STS
             sts_b_ids_1, sts_b_ids_2, sts_b_mask_1, sts_b_mask_2, sts_b_labels = (sts_train['token_ids_1'], sts_train['token_ids_2'], 
@@ -422,30 +452,53 @@ def train_multitask(args, pretrain_file_path):
 
             
             logits = model.predict_similarity(sts_b_ids_1, sts_b_mask_1, sts_b_ids_2, sts_b_mask_2)
-
             rescaled_logits = logits * (N_SIMILARITY_CLASSES - 1)
             loss = F.mse_loss(rescaled_logits, sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
+            # losses.append(loss)
             loss.backward()
 
             iter_loss += loss.item()
             num_batches += 1
-            
 
+            # update predicted/actual lists
+            y_hat = logits.detach().flatten().cpu().numpy()
+            b_labels = sts_b_labels.detach().flatten().cpu().numpy()
+
+            sts_y_pred.extend(y_hat)
+            sts_y_true.extend(b_labels)
+
+            # run gradient surgery backprop and update optimizer
+            # optimizer.pc_backward(losses)
             optimizer.step()
             train_loss += iter_loss / N_TASKS
      
 
         train_loss = train_loss / (num_batches)
 
-        train_acc, train_f1, *_ = model_eval_sst(sst_train_dataloader, model, device)
-        dev_acc, dev_f1, *_ = model_eval_sst(sst_dev_dataloader, model, device)
+        # evaluate on training set
+        train_acc_para = np.mean(np.array(para_y_pred) == np.array(para_y_true))
+        train_acc_sst = np.mean(np.array(sst_y_pred) == np.array(sst_y_true))
+        train_acc_sts = np.corrcoef(sts_y_pred, sts_y_true)[1][0]
 
-        if dev_acc > best_dev_acc:
-            best_dev_acc = dev_acc
+        # evaluate on dev set
+        dev_eval = model_eval_multitask(sst_dev_dataloader, para_dev_dataloader, sts_dev_dataloader, model, device)
+        dev_acc_para = dev_eval[0]
+        dev_acc_sst = dev_eval[3]
+        dev_acc_sts = dev_eval[6]
+
+        # score is sum of accuracies
+        train_score = train_acc_para + train_acc_sst + train_acc_sts
+        dev_score = dev_acc_para + dev_acc_sst + dev_acc_sts
+
+        # if score is best so far, save model
+        if dev_score > best_dev_score:
+            best_dev_score = dev_score
+            # save_model(model, optimizer.optimizer, args, config, args.filepath)
             save_model(model, optimizer, args, config, args.filepath)
 
-        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+        print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train score :: {train_score :.3f}, dev score :: {dev_score :.3f}\ntrain acc (para) :: {train_acc_para :.3f}, train acc (sst) :: {train_acc_sst :.3f}, train acc (sts) :: {train_acc_sts :.3f}")
+        # print(f"Epoch {epoch}: train loss :: {train_loss :.3f},  dev score :: {dev_score :.3f}")
 
 
 
