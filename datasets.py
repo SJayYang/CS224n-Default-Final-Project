@@ -223,9 +223,6 @@ class MaskedLMDataset(Dataset):
         return self.dataset[idx]
 
     def masked_data(self, data):
-
-        # Change it to masking one single token
-
         if self.single:
             sents = [x[0] for x in data]
             labels = [x[1] for x in data]
@@ -236,6 +233,9 @@ class MaskedLMDataset(Dataset):
             sents.extend(sents2)
             sent_ids = [x[2] for x in data]
 
+        # Compute the number of tokens to mask
+        num_tokens = sum([len(self.tokenizer.encode(sent)) for sent in sents])
+        num_tokens_to_mask = int(num_tokens * 0.15)
 
         encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
         token_ids = torch.LongTensor(encoding['input_ids'])
@@ -245,28 +245,39 @@ class MaskedLMDataset(Dataset):
         # create a set of forbidden values
         forbidden_values = {101, 102, 0}
 
-        # generate a random index until it's not in the set of forbidden values
-        random_indices = torch.randint(0, len(token_ids[0]), size=(len(sents),))
-        for i, idx in enumerate(random_indices):
-            while token_ids[i, idx] in forbidden_values:
-                random_indices[i] = torch.randint(0, len(token_ids[0]), size=(1,))
+        # randomly select indices to mask
+        random_indices = []
+        for i in range(len(sents)):
+            indices = torch.arange(len(token_ids[i]))
+            mask = torch.ones_like(token_ids[i], dtype=torch.bool)
+            for v in forbidden_values:
+                mask &= (token_ids[i] != v)
+            indices = indices[mask]
+            num_tokens_i = len(indices)
+            num_tokens_to_mask_i = int(num_tokens_to_mask * num_tokens_i // num_tokens)
+            if num_tokens_to_mask_i > 0:
+                selected_indices = torch.randperm(num_tokens_i)[:num_tokens_to_mask_i]
+                random_indices.append(indices[selected_indices])
+            else:
+                random_indices.append(torch.tensor([], dtype=torch.long))
 
         # create a mask with all False values except for the randomly selected indices
         BERT_mask = torch.zeros(len(sents), len(token_ids[0]), dtype=torch.bool)
-        for i, idx in enumerate(random_indices):
-            BERT_mask[i, idx] = True
+        for i, indices in enumerate(random_indices):
+            BERT_mask[i, indices] = True
+        
+
 
         selection = []
-
         for i in range(token_ids.shape[0]):
-            selection.append(
-                torch.flatten(BERT_mask[i].nonzero()).tolist()
-            )
+            selection.append(torch.flatten(BERT_mask[i].nonzero()).tolist())
 
         for i in range(token_ids.shape[0]):
             token_ids[i, selection[i]] = self.mask_token
         for i in range(labels.shape[0]):
             labels[i, selection[i]] = self.ignore_label
+
+    
 
         return token_ids, attention_mask, labels, sents, sent_ids, BERT_mask
 
@@ -283,6 +294,7 @@ class MaskedLMDataset(Dataset):
             }
 
         return batched_data
+
 
 def load_multitask_test_data():
     paraphrase_filename = f'data/quora-test.csv'
