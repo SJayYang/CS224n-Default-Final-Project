@@ -13,6 +13,7 @@ import csv
 import torch
 from torch.utils.data import Dataset
 from tokenizer import BertTokenizer
+import random
 
 
 def preprocess_string(s):
@@ -202,6 +203,94 @@ class SentencePairTestDataset(Dataset):
                 'token_type_ids_2': token_type_ids2,
                 'attention_mask_2': attention_mask2,
                 'sent_ids': sent_ids
+            }
+
+        return batched_data
+
+class MaskedLMDataset(Dataset):
+    def __init__(self, dataset, args, single):
+        self.dataset = dataset
+        self.p = args
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.mask_token = 103
+        self.ignore_label = -100
+        self.single = single
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        return self.dataset[idx]
+
+    def masked_data(self, data):
+        if self.single:
+            sents = [x[0] for x in data]
+            labels = [x[1] for x in data]
+            sent_ids = [x[2] for x in data]
+        else:
+            sents = [x[0] for x in data]
+            sents2 = [x[1] for x in data]
+            sents.extend(sents2)
+            sent_ids = [x[2] for x in data]
+
+        # Compute the number of tokens to mask
+        num_tokens = sum([len(self.tokenizer.encode(sent)) for sent in sents])
+        num_tokens_to_mask = int(num_tokens * 0.15)
+
+        encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
+        token_ids = torch.LongTensor(encoding['input_ids'])
+        attention_mask = torch.LongTensor(encoding['attention_mask'])
+        labels = token_ids.detach().clone()
+
+        # create a set of forbidden values
+        forbidden_values = {101, 102, 0}
+
+        # randomly select indices to mask
+        random_indices = []
+        for i in range(len(sents)):
+            indices = torch.arange(len(token_ids[i]))
+            mask = torch.ones_like(token_ids[i], dtype=torch.bool)
+            for v in forbidden_values:
+                mask &= (token_ids[i] != v)
+            indices = indices[mask]
+            num_tokens_i = len(indices)
+            num_tokens_to_mask_i = int(num_tokens_to_mask * num_tokens_i // num_tokens)
+            if num_tokens_to_mask_i > 0:
+                selected_indices = torch.randperm(num_tokens_i)[:num_tokens_to_mask_i]
+                random_indices.append(indices[selected_indices])
+            else:
+                random_indices.append(torch.tensor([], dtype=torch.long))
+
+        # create a mask with all False values except for the randomly selected indices
+        BERT_mask = torch.zeros(len(sents), len(token_ids[0]), dtype=torch.bool)
+        for i, indices in enumerate(random_indices):
+            BERT_mask[i, indices] = True
+        
+
+
+        selection = []
+        for i in range(token_ids.shape[0]):
+            selection.append(torch.flatten(BERT_mask[i].nonzero()).tolist())
+
+        for i in range(token_ids.shape[0]):
+            token_ids[i, selection[i]] = self.mask_token
+        for i in range(labels.shape[0]):
+            labels[i, selection[i]] = self.ignore_label
+
+    
+
+        return token_ids, attention_mask, labels, sents, sent_ids, BERT_mask
+
+    def collate_fn(self, all_data):
+        token_ids, attention_mask, labels, sents, sent_ids, BERT_mask = self.masked_data(all_data)
+
+        batched_data = {
+                'token_ids': token_ids,
+                'attention_mask': attention_mask,
+                'labels': labels,
+                'sents': sents,
+                'sent_ids': sent_ids,
+                'bert_mask': BERT_mask
             }
 
         return batched_data
