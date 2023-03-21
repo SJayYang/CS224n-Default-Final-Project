@@ -106,8 +106,6 @@ class MultitaskBERT(nn.Module):
         output = torch.cat((first_tk_1, first_tk_2), 1)
         output = self.dropout(output)
         output = self.para_proj(output)
-        # output = self.cos(first_tk_1, first_tk_2)
-        # output = self.relu(output)
         return output
         
 
@@ -360,8 +358,7 @@ def train_multitask(args, pretrain_file_path):
     model = model.to(device)
 
     lr = args.lr
-    # optimizer = PCGrad(AdamW(model.parameters(), lr=lr))
-    optimizer = AdamW(model.parameters(), lr=lr)
+    optimizer = PCGrad(AdamW(model.parameters(), lr=lr))
     best_dev_score = 0
 
     # Run for the specified number of epochs
@@ -381,7 +378,7 @@ def train_multitask(args, pretrain_file_path):
                                                      total=min([len(sst_train_dataloader), len(para_train_dataloader), len(sts_train_dataloader)]),
                                                      desc=f'train-{epoch}', disable=TQDM_DISABLE):
             iter_loss = 0
-            # losses = []
+            losses = []
             
             # zero out gradients
             optimizer.zero_grad()
@@ -397,9 +394,7 @@ def train_multitask(args, pretrain_file_path):
             logits = model.predict_sentiment(sst_b_ids, sst_b_mask)
             loss = F.cross_entropy(logits, sst_b_labels.view(-1), reduction='sum') / args.batch_size
 
-            # losses.append(loss)
-            loss.backward()
-
+            losses.append(loss)
             iter_loss += loss.item()
             num_batches += 1
 
@@ -424,11 +419,8 @@ def train_multitask(args, pretrain_file_path):
             logits = model.predict_paraphrase(para_b_ids_1, para_b_mask_1, para_b_ids_2, para_b_mask_2)
             normalized_logits = torch.sigmoid(logits)
             loss = F.binary_cross_entropy(torch.squeeze(normalized_logits, dim=1), para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
-            # loss = F.binary_cross_entropy(logits, para_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
-            # losses.append(loss)
-            loss.backward()
-
+            losses.append(loss)
             iter_loss += loss.item()
             num_batches += 1
 
@@ -455,9 +447,7 @@ def train_multitask(args, pretrain_file_path):
             rescaled_logits = logits * (N_SIMILARITY_CLASSES - 1)
             loss = F.mse_loss(rescaled_logits, sts_b_labels.view(-1).float(), reduction='sum') / args.batch_size
 
-            # losses.append(loss)
-            loss.backward()
-
+            losses.append(loss)
             iter_loss += loss.item()
             num_batches += 1
 
@@ -469,8 +459,7 @@ def train_multitask(args, pretrain_file_path):
             sts_y_true.extend(b_labels)
 
             # run gradient surgery backprop and update optimizer
-            # optimizer.pc_backward(losses)
-            optimizer.step()
+            optimizer.pc_backward(losses)
             train_loss += iter_loss / N_TASKS
      
 
@@ -494,11 +483,9 @@ def train_multitask(args, pretrain_file_path):
         # if score is best so far, save model
         if dev_score > best_dev_score:
             best_dev_score = dev_score
-            # save_model(model, optimizer.optimizer, args, config, args.filepath)
-            save_model(model, optimizer, args, config, args.filepath)
+            save_model(model, optimizer.optimizer, args, config, args.filepath)
 
         print(f"Epoch {epoch}: train loss :: {train_loss :.3f}, train score :: {train_score :.3f}, dev score :: {dev_score :.3f}\ntrain acc (para) :: {train_acc_para :.3f}, train acc (sst) :: {train_acc_sst :.3f}, train acc (sts) :: {train_acc_sts :.3f}")
-        # print(f"Epoch {epoch}: train loss :: {train_loss :.3f},  dev score :: {dev_score :.3f}")
 
 
 
